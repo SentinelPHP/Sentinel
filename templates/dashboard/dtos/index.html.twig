@@ -1,0 +1,234 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Generated DTOs{% endblock %}
+{% block header_title %}Generated DTOs{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_dtos') }}" class="row g-3">
+                <div class="col-md-2">
+                    <label for="token_id" class="form-label">Token</label>
+                    <select name="token_id" id="token_id" class="form-select form-select-sm">
+                        <option value="">All Tokens</option>
+                        {% for token in tokens %}
+                            <option value="{{ token.id }}" {{ filters.tokenId == token.id|raw ? 'selected' : '' }}>
+                                {{ token.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="class_name" class="form-label">Class Name</label>
+                    <input type="text" name="class_name" id="class_name" class="form-control form-control-sm" 
+                           placeholder="UserResponse" value="{{ filters.className }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="namespace" class="form-label">Namespace</label>
+                    <input type="text" name="namespace" id="namespace" class="form-control form-control-sm" 
+                           placeholder="App\Dto\Generated" value="{{ filters.namespace }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="endpoint_path" class="form-label">Endpoint</label>
+                    <input type="text" name="endpoint_path" id="endpoint_path" class="form-control form-control-sm" 
+                           placeholder="/users/{id}" value="{{ filters.endpointPath }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_dtos') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('dashboard_dtos_export_bulk') }}" id="bulk-export-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('export_bulk_dtos') }}">
+        
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-file-earmark-code me-2"></i>Generated DTOs
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+                    <button type="submit" class="btn btn-outline-info btn-sm" id="bulk-export-btn" disabled>
+                        <i class="bi bi-file-zip me-1"></i> Export Selected
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input" id="select-all" title="Select all">
+                                </th>
+                                <th>Class Name</th>
+                                <th>Namespace</th>
+                                <th>Schema</th>
+                                <th>Version</th>
+                                <th>Status</th>
+                                <th>Generated</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dto in dtos %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input dto-checkbox" 
+                                               name="dto_ids[]" value="{{ dto.id }}">
+                                    </td>
+                                    <td>
+                                        <a href="{{ path('dashboard_dtos_show', {id: dto.id}) }}" class="text-decoration-none">
+                                            <code class="text-primary">{{ dto.className }}</code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted font-monospace">{{ dto.namespace }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ path('dashboard_schemas_show', {id: dto.schema.id}) }}" 
+                                           class="text-decoration-none text-muted">
+                                            {% set methodColors = {
+                                                'GET': 'success',
+                                                'POST': 'primary',
+                                                'PUT': 'warning',
+                                                'PATCH': 'info',
+                                                'DELETE': 'danger'
+                                            } %}
+                                            <span class="badge bg-{{ methodColors[dto.schema.httpMethod] ?? 'secondary' }} me-1">
+                                                {{ dto.schema.httpMethod }}
+                                            </span>
+                                            <code>{{ dto.schema.endpointPath }}</code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">v{{ dto.version }}</span>
+                                        {% if dto.isCurrent %}
+                                            <span class="badge bg-success">Current</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if dto.status.value == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Completed
+                                            </span>
+                                        {% elseif dto.status.value == 'pending' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-hourglass-split me-1"></i>Pending
+                                            </span>
+                                        {% elseif dto.status.value == 'in_progress' %}
+                                            <span class="badge bg-info">
+                                                <i class="bi bi-arrow-repeat me-1"></i>In Progress
+                                            </span>
+                                        {% elseif dto.status.value == 'failed' %}
+                                            <span class="badge bg-danger" title="{{ dto.errorMessage }}">
+                                                <i class="bi bi-x-circle me-1"></i>Failed
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" title="{{ dto.createdAt|date('Y-m-d H:i:s') }}">
+                                            {{ dto.createdAt|date('M j, H:i') }}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ path('dashboard_dtos_show', {id: dto.id}) }}" 
+                                               class="btn btn-outline-primary" title="View DTO">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ path('dashboard_dtos_download', {id: dto.id}) }}" 
+                                               class="btn btn-outline-info" title="Download PHP">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <a href="{{ path('dashboard_dtos_diff', {id: dto.id}) }}" 
+                                               class="btn btn-outline-secondary" title="Version Diff">
+                                                <i class="bi bi-file-diff"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="bi bi-file-earmark-code fs-1 d-block mb-2"></i>
+                                        No generated DTOs found.
+                                        {% if filters.tokenId or filters.className or filters.namespace or filters.endpointPath %}
+                                            <br><a href="{{ path('dashboard_dtos') }}">Clear filters</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if pagination.totalPages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="DTO pagination">
+                        <ul class="pagination pagination-sm mb-0 justify-content-center">
+                            <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_dtos', filters|merge({page: pagination.page - 1})) }}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                                <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                    <a class="page-link" href="{{ path('dashboard_dtos', filters|merge({page: p})) }}">{{ p }}</a>
+                                </li>
+                            {% endfor %}
+                            <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_dtos', filters|merge({page: pagination.page + 1})) }}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        </div>
+    </form>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAll = document.getElementById('select-all');
+            const checkboxes = document.querySelectorAll('.dto-checkbox');
+            const exportBtn = document.getElementById('bulk-export-btn');
+
+            function updateExportButton() {
+                const checked = document.querySelectorAll('.dto-checkbox:checked');
+                exportBtn.disabled = checked.length === 0;
+                exportBtn.textContent = checked.length > 0 
+                    ? `Export Selected (${checked.length})` 
+                    : 'Export Selected';
+            }
+
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(cb => cb.checked = this.checked);
+                updateExportButton();
+            });
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const allChecked = document.querySelectorAll('.dto-checkbox:checked').length === checkboxes.length;
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = !allChecked && document.querySelectorAll('.dto-checkbox:checked').length > 0;
+                    updateExportButton();
+                });
+            });
+        });
+    </script>
+{% endblock %}

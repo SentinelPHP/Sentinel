@@ -1,0 +1,195 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}API Tokens{% endblock %}
+{% block header_title %}API Tokens{% endblock %}
+
+{% block header_actions %}
+    {% if is_granted('ROLE_ADMIN') %}
+        <a href="{{ path('dashboard_tokens_new') }}" class="btn btn-primary btn-sm me-3">
+            <i class="bi bi-plus-lg me-1"></i> New Token
+        </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_tokens') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" id="search" class="form-control form-control-sm" 
+                           placeholder="Token name..." value="{{ filters.search }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="mode" class="form-label">Mode</label>
+                    <select name="mode" id="mode" class="form-select form-select-sm">
+                        <option value="">All Modes</option>
+                        <option value="passive" {{ filters.mode == 'passive' ? 'selected' : '' }}>Passive</option>
+                        <option value="learning" {{ filters.mode == 'learning' ? 'selected' : '' }}>Learning</option>
+                        <option value="validating" {{ filters.mode == 'validating' ? 'selected' : '' }}>Validating</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="active" {{ filters.status == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ filters.status == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_tokens') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-key me-2"></i>API Tokens
+            </h5>
+            <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Name</th>
+                            <th scope="col">Mode</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Allowed Targets</th>
+                            <th scope="col" class="d-none d-md-table-cell">Requests</th>
+                            <th scope="col" class="d-none d-md-table-cell">Drifts</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Last Activity</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for token in tokens %}
+                            {% set stats = tokenStats[token.id|raw] %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path('dashboard_tokens_show', {id: token.id}) }}" class="text-decoration-none fw-medium">
+                                        {{ token.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if token.mode.value == 'learning' %}
+                                        <span class="badge bg-info">Learning</span>
+                                    {% elseif token.mode.value == 'validating' %}
+                                        <span class="badge bg-success">Validating</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Passive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if token.isActive %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-lg-table-cell">
+                                    {% if token.allowedTargets|length == 0 %}
+                                        <span class="text-muted">All hosts</span>
+                                    {% elseif token.allowedTargets|length <= 2 %}
+                                        <small>{{ token.allowedTargets|join(', ') }}</small>
+                                    {% else %}
+                                        <small title="{{ token.allowedTargets|join(', ') }}">
+                                            {{ token.allowedTargets|slice(0, 2)|join(', ') }}
+                                            <span class="text-muted">+{{ token.allowedTargets|length - 2 }} more</span>
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <span class="badge bg-light text-dark">{{ stats.requestCount|number_format }}</span>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    {% if stats.driftCount > 0 %}
+                                        <span class="badge bg-warning text-dark">{{ stats.driftCount|number_format }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-lg-table-cell">
+                                    {% if stats.lastActivity %}
+                                        <small class="text-muted" title="{{ stats.lastActivity|date('Y-m-d H:i:s') }}">
+                                            {{ stats.lastActivity|date('M j, H:i') }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">Never</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ path('dashboard_tokens_show', {id: token.id}) }}" 
+                                           class="btn btn-outline-primary" title="View Details" aria-label="View details for {{ token.name }}">
+                                            <i class="bi bi-eye" aria-hidden="true"></i>
+                                        </a>
+                                        <a href="{{ path('dashboard_tokens_activity', {id: token.id}) }}" 
+                                           class="btn btn-outline-secondary d-none d-sm-inline-block" title="View Activity" aria-label="View activity for {{ token.name }}">
+                                            <i class="bi bi-activity" aria-hidden="true"></i>
+                                        </a>
+                                        {% if is_granted('ROLE_ADMIN') %}
+                                            <form method="post" action="{{ path('dashboard_tokens_toggle', {id: token.id}) }}" 
+                                                  class="d-inline" onsubmit="return confirm('Are you sure you want to {{ token.isActive ? 'deactivate' : 'activate' }} this token?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('toggle_token_' ~ token.id) }}">
+                                                <button type="submit" class="btn btn-outline-{{ token.isActive ? 'warning' : 'success' }}" 
+                                                        title="{{ token.isActive ? 'Deactivate' : 'Activate' }}">
+                                                    <i class="bi bi-{{ token.isActive ? 'pause' : 'play' }}"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <i class="bi bi-key fs-1 d-block mb-2"></i>
+                                    No tokens found.
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        <br><a href="{{ path('dashboard_tokens_new') }}">Create your first token</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Token pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_tokens', filters|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_tokens', filters|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_tokens', filters|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Request Logs{% endblock %}
+{% block header_title %}Request Logs{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-funnel me-2"></i>Filters</span>
+            <div>
+                <a href="{{ path('dashboard_logs_export_csv', filters|filter(v => v is not empty)) }}" class="btn btn-sm btn-outline-secondary me-1">
+                    <i class="bi bi-filetype-csv"></i> Export CSV
+                </a>
+                <a href="{{ path('dashboard_logs_export_json', filters|filter(v => v is not empty)) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-filetype-json"></i> Export JSON
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_logs') }}" class="row g-3">
+                <div class="col-md-2">
+                    <label for="token_id" class="form-label">Token</label>
+                    <select name="token_id" id="token_id" class="form-select form-select-sm">
+                        <option value="">All Tokens</option>
+                        {% for token in tokens %}
+                            <option value="{{ token.id }}" {{ filters.tokenId == token.id|default('')|raw ? 'selected' : '' }}>
+                                {{ token.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="target_host" class="form-label">Target Host</label>
+                    <select name="target_host" id="target_host" class="form-select form-select-sm">
+                        <option value="">All Hosts</option>
+                        {% for host in targetHosts %}
+                            <option value="{{ host }}" {{ filters.targetHost == host ? 'selected' : '' }}>
+                                {{ host }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label for="method" class="form-label">Method</label>
+                    <select name="method" id="method" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        {% for m in methods %}
+                            <option value="{{ m }}" {{ filters.method == m ? 'selected' : '' }}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="path_search" class="form-label">Path Contains</label>
+                    <input type="text" name="path_search" id="path_search" class="form-control form-control-sm" 
+                           value="{{ filters.pathSearch }}" placeholder="/api/...">
+                </div>
+                <div class="col-md-1">
+                    <label for="status_code_range" class="form-label">Status</label>
+                    <select name="status_code_range" id="status_code_range" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="2xx" {{ filters.statusCodeRange == '2xx' ? 'selected' : '' }}>2xx</option>
+                        <option value="3xx" {{ filters.statusCodeRange == '3xx' ? 'selected' : '' }}>3xx</option>
+                        <option value="4xx" {{ filters.statusCodeRange == '4xx' ? 'selected' : '' }}>4xx</option>
+                        <option value="5xx" {{ filters.statusCodeRange == '5xx' ? 'selected' : '' }}>5xx</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Latency (ms)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" name="latency_min" class="form-control" placeholder="Min" 
+                               value="{{ filters.latencyMin }}" min="0">
+                        <span class="input-group-text">-</span>
+                        <input type="number" name="latency_max" class="form-control" placeholder="Max" 
+                               value="{{ filters.latencyMax }}" min="0">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label for="has_drift" class="form-label">Drift</label>
+                    <select name="has_drift" id="has_drift" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="1" {{ filters.hasDrift == '1' ? 'selected' : '' }}>With Drift</option>
+                        <option value="0" {{ filters.hasDrift == '0' ? 'selected' : '' }}>No Drift</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="from" class="form-label">From</label>
+                    <input type="date" name="from" id="from" class="form-control form-control-sm" value="{{ filters.from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="to" class="form-label">To</label>
+                    <input type="date" name="to" id="to" class="form-control form-control-sm" value="{{ filters.to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_logs') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Request Logs</h5>
+            <div>
+                <span class="badge bg-secondary me-2">{{ pagination.totalCount }} total</span>
+                <span class="badge bg-info" title="Logs are retained for {{ retentionDays }} days">
+                    <i class="bi bi-clock-history"></i> {{ retentionDays }}d retention
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Timestamp</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Token</th>
+                            <th scope="col" class="d-none d-xl-table-cell">Target</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Path</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="d-none d-md-table-cell">Latency</th>
+                            <th scope="col">Drift</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">{{ log.createdAt|date('M j, H:i:s') }}</small>
+                                </td>
+                                <td class="d-none d-lg-table-cell">
+                                    {% if log.token %}
+                                        <small>{{ log.token.name }}</small>
+                                    {% else %}
+                                        <small class="text-muted">N/A</small>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-xl-table-cell">
+                                    <small class="text-truncate d-inline-block" style="max-width: 120px;" title="{{ log.targetHost }}">
+                                        {{ log.targetHost }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-dark">{{ log.requestMethod }}</span>
+                                </td>
+                                <td>
+                                    <code class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ log.requestPath }}">
+                                        {{ log.requestPath }}
+                                    </code>
+                                </td>
+                                <td>
+                                    {% set statusClass = 'secondary' %}
+                                    {% if log.responseStatusCode >= 200 and log.responseStatusCode < 300 %}
+                                        {% set statusClass = 'success' %}
+                                    {% elseif log.responseStatusCode >= 300 and log.responseStatusCode < 400 %}
+                                        {% set statusClass = 'info' %}
+                                    {% elseif log.responseStatusCode >= 400 and log.responseStatusCode < 500 %}
+                                        {% set statusClass = 'warning' %}
+                                    {% elseif log.responseStatusCode >= 500 %}
+                                        {% set statusClass = 'danger' %}
+                                    {% endif %}
+                                    <span class="badge bg-{{ statusClass }}">{{ log.responseStatusCode }}</span>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    {% set latencyClass = 'text-success' %}
+                                    {% if log.latencyMs > 1000 %}
+                                        {% set latencyClass = 'text-danger' %}
+                                    {% elseif log.latencyMs > 500 %}
+                                        {% set latencyClass = 'text-warning' %}
+                                    {% endif %}
+                                    <small class="{{ latencyClass }}">{{ log.latencyMs }}ms</small>
+                                </td>
+                                <td>
+                                    {% if log.driftDetected %}
+                                        {% if log.drift %}
+                                            <a href="{{ path('dashboard_drifts_show', {id: log.drift.id}) }}" 
+                                               class="badge bg-danger text-decoration-none" title="View drift">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i></span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ path('dashboard_logs_show', {id: log.id}) }}" class="btn btn-sm btn-outline-primary" aria-label="View log details">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No request logs found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Request log pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_logs', filters|filter(v => v is not empty)|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_logs', filters|filter(v => v is not empty)|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_logs', filters|filter(v => v is not empty)|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

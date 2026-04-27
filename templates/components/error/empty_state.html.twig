@@ -1,0 +1,49 @@
+{#
+    Empty State Component
+    
+    Usage: {{ include('components/error/empty_state.html.twig', {
+        icon: 'bi-inbox',
+        title: 'No items found',
+        message: 'Create your first item to get started.',
+        actionUrl: path('dashboard_tokens_new'),
+        actionLabel: 'Create Token'
+    }) }}
+    
+    Parameters:
+    - icon: Bootstrap icon class (default: 'bi-inbox')
+    - title: Empty state title (default: 'No data available')
+    - message: Descriptive message (optional)
+    - actionUrl: URL for action button (optional)
+    - actionLabel: Label for action button (optional)
+    - secondaryUrl: URL for secondary action (optional)
+    - secondaryLabel: Label for secondary action (optional)
+#}
+{% set icon = icon|default('bi-inbox') %}
+{% set title = title|default('No data available') %}
+
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="bi {{ icon }}" aria-hidden="true"></i>
+    </div>
+    
+    <h3 class="empty-title">{{ title }}</h3>
+    
+    {% if message is defined and message %}
+    <p class="empty-message">{{ message }}</p>
+    {% endif %}
+    
+    {% if actionUrl is defined and actionUrl and actionLabel is defined %}
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a href="{{ actionUrl }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+            {{ actionLabel }}
+        </a>
+        
+        {% if secondaryUrl is defined and secondaryUrl and secondaryLabel is defined %}
+        <a href="{{ secondaryUrl }}" class="btn btn-outline-secondary">
+            {{ secondaryLabel }}
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

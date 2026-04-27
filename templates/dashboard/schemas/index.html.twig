@@ -1,0 +1,216 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}API Schemas{% endblock %}
+{% block header_title %}API Schemas{% endblock %}
+
+{% block header_actions %}
+    {% if is_granted('ROLE_ADMIN') %}
+        <a href="{{ path('dashboard_schemas_import') }}" class="btn btn-primary btn-sm me-3">
+            <i class="bi bi-upload me-1"></i> Import Schema
+        </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_schemas') }}" class="row g-3">
+                <div class="col-md-2">
+                    <label for="token_id" class="form-label">Token</label>
+                    <select name="token_id" id="token_id" class="form-select form-select-sm">
+                        <option value="">All Tokens</option>
+                        {% for token in tokens %}
+                            <option value="{{ token.id }}" {{ filters.tokenId == token.id|raw ? 'selected' : '' }}>
+                                {{ token.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="target_host" class="form-label">Target Host</label>
+                    <input type="text" name="target_host" id="target_host" class="form-control form-control-sm"
+                           placeholder="api.example.com" value="{{ filters.targetHost }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="endpoint_path" class="form-label">Endpoint</label>
+                    <input type="text" name="endpoint_path" id="endpoint_path" class="form-control form-control-sm"
+                           placeholder="/users/{id}" value="{{ filters.endpointPath }}">
+                </div>
+                <div class="col-md-1">
+                    <label for="http_method" class="form-label">Method</label>
+                    <select name="http_method" id="http_method" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        {% for method in httpMethods %}
+                            <option value="{{ method }}" {{ filters.httpMethod == method ? 'selected' : '' }}>{{ method }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="schema_type" class="form-label">Type</label>
+                    <select name="schema_type" id="schema_type" class="form-select form-select-sm">
+                        <option value="">All Types</option>
+                        {% for type in schemaTypes %}
+                            <option value="{{ type.value }}" {{ filters.schemaType == type.value ? 'selected' : '' }}>
+                                {{ type.value|capitalize }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label d-block">&nbsp;</label>
+                    <div class="form-check">
+                        <input type="checkbox" name="master_only" id="master_only" class="form-check-input"
+                               value="1" {{ filters.masterOnly ? 'checked' : '' }}>
+                        <label for="master_only" class="form-check-label">Master</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_schemas') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-file-earmark-code me-2"></i>API Schemas
+            </h5>
+            <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Method</th>
+                            <th>Type</th>
+                            <th>Token</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Samples</th>
+                            <th>Last Updated</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schema in schemas %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path('dashboard_schemas_show', {id: schema.id}) }}" class="text-decoration-none">
+                                        <code class="text-primary">{{ schema.endpointPath }}</code>
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">{{ schema.targetHost }}</small>
+                                </td>
+                                <td>
+                                    {% set methodColors = {
+                                        'GET': 'success',
+                                        'POST': 'primary',
+                                        'PUT': 'warning',
+                                        'PATCH': 'info',
+                                        'DELETE': 'danger'
+                                    } %}
+                                    <span class="badge bg-{{ methodColors[schema.httpMethod] ?? 'secondary' }}">
+                                        {{ schema.httpMethod }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if schema.schemaType.value == 'request' %}
+                                        <span class="badge bg-info">Request</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Response</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ path('dashboard_tokens_show', {id: schema.token.id}) }}"
+                                       class="text-decoration-none text-muted">
+                                        {{ schema.token.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">v{{ schema.version }}</span>
+                                </td>
+                                <td>
+                                    {% if schema.isMaster %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-star-fill me-1"></i>Master
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Learned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ schema.sampleCount|number_format }}</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted" title="{{ schema.updatedAt|date('Y-m-d H:i:s') }}">
+                                        {{ schema.updatedAt|date('M j, H:i') }}
+                                    </small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ path('dashboard_schemas_show', {id: schema.id}) }}"
+                                           class="btn btn-outline-primary" title="View Schema">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ path('dashboard_schemas_versions', {id: schema.id}) }}"
+                                           class="btn btn-outline-secondary" title="Version History">
+                                            <i class="bi bi-clock-history"></i>
+                                        </a>
+                                        <a href="{{ path('dashboard_schemas_export', {id: schema.id}) }}"
+                                           class="btn btn-outline-info" title="Export JSON">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="bi bi-file-earmark-code fs-1 d-block mb-2"></i>
+                                    No schemas found.
+                                    {% if filters.tokenId or filters.targetHost or filters.endpointPath or filters.httpMethod or filters.schemaType or filters.masterOnly %}
+                                        <br><a href="{{ path('dashboard_schemas') }}">Clear filters</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Schema pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_schemas', filters|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_schemas', filters|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_schemas', filters|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

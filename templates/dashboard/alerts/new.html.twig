@@ -1,0 +1,97 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}New Alert Configuration{% endblock %}
+{% block header_title %}New Alert Configuration{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary btn-sm me-3">
+        <i class="bi bi-arrow-left me-1"></i> Back to Alerts
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-bell-fill me-2"></i>Create Alert Configuration
+                </div>
+                <div class="card-body">
+                    {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+                        <div class="mb-3">
+                            {{ form_row(form.channelType) }}
+                        </div>
+
+                        <div id="slack-fields">
+                            {{ form_row(form.slackWebhookUrl) }}
+                            {{ form_row(form.slackChannel) }}
+                        </div>
+
+                        <div id="webhook-fields">
+                            {{ form_row(form.webhookUrl) }}
+                            {{ form_row(form.webhookSecret) }}
+                        </div>
+
+                        <div id="email-fields">
+                            {{ form_row(form.emailRecipients) }}
+                            {{ form_row(form.emailSubjectPrefix) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-3">
+                            {{ form_row(form.minSeverity) }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form_row(form.token) }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form_row(form.isActive) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Create Alert Configuration
+                            </button>
+                        </div>
+                    {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const channelTypeSelect = document.getElementById('alert_configuration_channelType');
+            
+            function updateFieldVisibility() {
+                const value = channelTypeSelect.value;
+                
+                document.querySelectorAll('[data-alert-config-form-target="slackFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'slack');
+                });
+                document.querySelectorAll('[data-alert-config-form-target="webhookFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'webhook');
+                });
+                document.querySelectorAll('[data-alert-config-form-target="emailFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'email');
+                });
+            }
+            
+            if (channelTypeSelect) {
+                channelTypeSelect.addEventListener('change', updateFieldVisibility);
+                updateFieldVisibility();
+            }
+        });
+    </script>
+{% endblock %}

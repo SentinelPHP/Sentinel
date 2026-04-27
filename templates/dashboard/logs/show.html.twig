@@ -1,0 +1,338 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Request Log Detail{% endblock %}
+{% block header_title %}Request Log Detail{% endblock %}
+
+{% block content %}
+    <div class="mb-3">
+        <a href="{{ path('dashboard_logs') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Logs
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <span class="badge bg-dark">{{ log.requestMethod }}</span>
+                        <code>{{ log.requestPath }}</code>
+                    </h5>
+                    {% set statusClass = 'secondary' %}
+                    {% if log.responseStatusCode >= 200 and log.responseStatusCode < 300 %}
+                        {% set statusClass = 'success' %}
+                    {% elseif log.responseStatusCode >= 300 and log.responseStatusCode < 400 %}
+                        {% set statusClass = 'info' %}
+                    {% elseif log.responseStatusCode >= 400 and log.responseStatusCode < 500 %}
+                        {% set statusClass = 'warning' %}
+                    {% elseif log.responseStatusCode >= 500 %}
+                        {% set statusClass = 'danger' %}
+                    {% endif %}
+                    <span class="badge bg-{{ statusClass }} fs-6">{{ log.responseStatusCode }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <th class="text-muted" style="width: 120px;">ID</th>
+                                    <td><code>{{ log.id }}</code></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Timestamp</th>
+                                    <td>{{ log.createdAt|date('Y-m-d H:i:s') }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Token</th>
+                                    <td>
+                                        {% if log.token %}
+                                            <a href="{{ path('dashboard_tokens_show', {id: log.token.id}) }}">
+                                                {{ log.token.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Target Host</th>
+                                    <td><code>{{ log.targetHost }}</code></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <th class="text-muted" style="width: 120px;">Latency</th>
+                                    <td>
+                                        {% set latencyClass = 'text-success' %}
+                                        {% if log.latencyMs > 1000 %}
+                                            {% set latencyClass = 'text-danger' %}
+                                        {% elseif log.latencyMs > 500 %}
+                                            {% set latencyClass = 'text-warning' %}
+                                        {% endif %}
+                                        <span class="{{ latencyClass }} fw-bold">{{ log.latencyMs }}ms</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Schema Validated</th>
+                                    <td>
+                                        {% if log.schemaValidated is null %}
+                                            <span class="text-muted">N/A</span>
+                                        {% elseif log.schemaValidated %}
+                                            <span class="text-success"><i class="bi bi-check-circle"></i> Yes</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="bi bi-x-circle"></i> No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Drift Detected</th>
+                                    <td>
+                                        {% if log.driftDetected %}
+                                            <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Yes</span>
+                                            {% if log.drift %}
+                                                <a href="{{ path('dashboard_drifts_show', {id: log.drift.id}) }}" class="btn btn-sm btn-outline-danger ms-2">
+                                                    View Drift
+                                                </a>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-success"><i class="bi bi-check-circle"></i> No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Compressed</th>
+                                    <td>{{ log.compressed ? 'Yes' : 'No' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if log.encrypted %}
+                <div class="card mb-4 border-warning" data-controller="log-decrypt" data-log-decrypt-url-value="{{ path('dashboard_logs_decrypt', {id: log.id}) }}">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-shield-lock me-2"></i>Encrypted Content
+                        </h6>
+                        <button type="button" class="btn btn-dark btn-sm" data-action="log-decrypt#decrypt" data-log-decrypt-target="decryptButton">
+                            <i class="bi bi-unlock me-1"></i> Decrypt
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div data-log-decrypt-target="encryptedMessage">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-lock fs-1 d-block mb-2"></i>
+                                <p class="mb-2">Request and response data is encrypted.</p>
+                                <p class="small text-muted mb-0">Click "Decrypt" to reveal the content.</p>
+                            </div>
+                        </div>
+                        <div data-log-decrypt-target="decryptedContent" class="d-none">
+                            <div data-log-decrypt-target="requestSection" class="d-none mb-4">
+                                <h6 class="text-muted mb-2"><i class="bi bi-arrow-up-circle me-1"></i> Request</h6>
+                                <div data-log-decrypt-target="requestHeadersSection" class="d-none mb-3">
+                                    <small class="text-muted">Headers</small>
+                                    <pre class="bg-light p-3 rounded mb-0" style="max-height: 200px; overflow-y: auto;"><code data-log-decrypt-target="requestHeaders"></code></pre>
+                                </div>
+                                <div data-log-decrypt-target="requestBodySection" class="d-none">
+                                    <small class="text-muted">Body</small>
+                                    <pre class="bg-light p-3 rounded mb-0" style="max-height: 400px; overflow-y: auto;"><code data-log-decrypt-target="requestBody"></code></pre>
+                                </div>
+                            </div>
+                            <div data-log-decrypt-target="responseSection" class="d-none">
+                                <h6 class="text-muted mb-2"><i class="bi bi-arrow-down-circle me-1"></i> Response</h6>
+                                <div data-log-decrypt-target="responseHeadersSection" class="d-none mb-3">
+                                    <small class="text-muted">Headers</small>
+                                    <pre class="bg-light p-3 rounded mb-0" style="max-height: 200px; overflow-y: auto;"><code data-log-decrypt-target="responseHeaders"></code></pre>
+                                </div>
+                                <div data-log-decrypt-target="responseBodySection" class="d-none">
+                                    <small class="text-muted">Body</small>
+                                    <pre class="bg-light p-3 rounded mb-0" style="max-height: 400px; overflow-y: auto;"><code data-log-decrypt-target="responseBody"></code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-log-decrypt-target="errorMessage" class="d-none">
+                            <div class="alert alert-danger mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <span data-log-decrypt-target="errorText"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% elseif log.decompressedRequestHeaders or log.decompressedRequestBody %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0"><i class="bi bi-arrow-up-circle me-2"></i>Request</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if log.decompressedRequestHeaders %}
+                            <h6 class="text-muted mb-2">Headers</h6>
+                            <pre class="bg-light p-3 rounded mb-3" style="max-height: 200px; overflow-y: auto;"><code>{{ log.decompressedRequestHeaders }}</code></pre>
+                        {% endif %}
+                        {% if log.decompressedRequestBody %}
+                            <h6 class="text-muted mb-2">Body</h6>
+                            <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ log.decompressedRequestBody }}</code></pre>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if not log.encrypted and (log.decompressedResponseHeaders or log.decompressedResponseBody) %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0"><i class="bi bi-arrow-down-circle me-2"></i>Response</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if log.decompressedResponseHeaders %}
+                            <h6 class="text-muted mb-2">Headers</h6>
+                            <pre class="bg-light p-3 rounded mb-3" style="max-height: 200px; overflow-y: auto;"><code>{{ log.decompressedResponseHeaders }}</code></pre>
+                        {% endif %}
+                        {% if log.decompressedResponseBody %}
+                            <h6 class="text-muted mb-2">Body</h6>
+                            <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ log.decompressedResponseBody }}</code></pre>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if not log.encrypted and not log.decompressedRequestHeaders and not log.decompressedRequestBody and not log.decompressedResponseHeaders and not log.decompressedResponseBody %}
+                {% if log.driftPayload %}
+                    <div class="card mb-4 border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h6 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Drift Payload</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                This log uses "drift_only" logging. Request/response data is only stored when a drift is detected.
+                            </p>
+                            {% if log.driftPayload.decompressedRequestHeaders %}
+                                <h6 class="text-muted mb-2">Request Headers</h6>
+                                <pre class="bg-light p-3 rounded mb-3" style="max-height: 200px; overflow-y: auto;"><code>{{ log.driftPayload.decompressedRequestHeaders }}</code></pre>
+                            {% endif %}
+                            {% if log.driftPayload.decompressedRequestBody %}
+                                <h6 class="text-muted mb-2">Request Body</h6>
+                                <pre class="bg-light p-3 rounded mb-3" style="max-height: 400px; overflow-y: auto;"><code>{{ log.driftPayload.decompressedRequestBody }}</code></pre>
+                            {% endif %}
+                            {% if log.driftPayload.decompressedResponseHeaders %}
+                                <h6 class="text-muted mb-2">Response Headers</h6>
+                                <pre class="bg-light p-3 rounded mb-3" style="max-height: 200px; overflow-y: auto;"><code>{{ log.driftPayload.decompressedResponseHeaders }}</code></pre>
+                            {% endif %}
+                            {% if log.driftPayload.decompressedResponseBody %}
+                                <h6 class="text-muted mb-2">Response Body</h6>
+                                <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ log.driftPayload.decompressedResponseBody }}</code></pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="card mb-4">
+                        <div class="card-body text-center text-muted py-4">
+                            <i class="bi bi-file-earmark-x fs-1 d-block mb-2"></i>
+                            Request/response bodies were not stored for this log.
+                        </div>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Retention</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        {% if daysUntilDeletion > 7 %}
+                            <i class="bi bi-check-circle text-success fs-4 me-2"></i>
+                        {% elseif daysUntilDeletion > 0 %}
+                            <i class="bi bi-exclamation-triangle text-warning fs-4 me-2"></i>
+                        {% else %}
+                            <i class="bi bi-x-circle text-danger fs-4 me-2"></i>
+                        {% endif %}
+                        <div>
+                            {% if daysUntilDeletion > 0 %}
+                                <strong>{{ daysUntilDeletion }} days</strong> until deletion
+                            {% else %}
+                                <strong class="text-danger">Scheduled for deletion</strong>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        {% set retentionPercent = ((retentionDays - daysUntilDeletion) / retentionDays * 100)|round %}
+                        {% set progressClass = 'bg-success' %}
+                        {% if retentionPercent > 75 %}
+                            {% set progressClass = 'bg-danger' %}
+                        {% elseif retentionPercent > 50 %}
+                            {% set progressClass = 'bg-warning' %}
+                        {% endif %}
+                        <div class="progress-bar {{ progressClass }}" role="progressbar" 
+                             style="width: {{ retentionPercent }}%;" 
+                             aria-valuenow="{{ retentionPercent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        Logs are retained for {{ retentionDays }} days from creation.
+                    </small>
+                </div>
+            </div>
+
+            {% if log.drift %}
+                <div class="card mb-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Associated Drift</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless mb-3">
+                            <tr>
+                                <th class="text-muted">Severity</th>
+                                <td>
+                                    {% if log.drift.severity.value == 'critical' %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elseif log.drift.severity.value == 'warning' %}
+                                        <span class="badge bg-warning text-dark">Warning</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Info</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Type</th>
+                                <td>{{ log.drift.driftType.value|replace({'_': ' '})|capitalize }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Path</th>
+                                <td><code>{{ log.drift.path }}</code></td>
+                            </tr>
+                        </table>
+                        <a href="{{ path('dashboard_drifts_show', {id: log.drift.id}) }}" class="btn btn-danger btn-sm w-100">
+                            <i class="bi bi-eye"></i> View Drift Details
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>Quick Info</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <small class="text-muted d-block">Full Path</small>
+                            <code class="small" style="word-break: break-all;">{{ log.requestPath }}</code>
+                        </li>
+                        <li class="mb-2">
+                            <small class="text-muted d-block">Encrypted</small>
+                            {{ log.encrypted ? 'Yes' : 'No' }}
+                        </li>
+                        <li>
+                            <small class="text-muted d-block">Compressed</small>
+                            {{ log.compressed ? 'Yes' : 'No' }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

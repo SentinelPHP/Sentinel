@@ -1,0 +1,311 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+parameters:
+    proxy.timeout: '%env(float:PROXY_TIMEOUT)%'
+    proxy.connect_timeout: '%env(float:PROXY_CONNECT_TIMEOUT)%'
+    proxy.log_level: '%env(string:LOG_LEVEL)%'
+    health.check_url: '%env(string:HEALTH_CHECK_URL)%'
+    status.allowed_ips: '%env(json:STATUS_ALLOWED_IPS)%'
+    schema.learning_min_samples: '%env(int:SCHEMA_LEARNING_MIN_SAMPLES)%'
+    schema.cache_ttl_default: 3600
+    retention.days: '%env(int:SENTINEL_RETENTION_DAYS)%'
+    retention.batch_size: '%env(int:SENTINEL_RETENTION_BATCH_SIZE)%'
+    redis_pool_size_default: 10
+    rate_limit_max_requests_default: 1000
+    rate_limit_window_seconds_default: 60
+    pii_redactor.enable_default_patterns: true
+    data_protection_strategy_default: 'none'
+    compress_audit_logs_default: false
+    slack_alert_rate_limit_default: 10
+    slack_alert_webhook_url_default: ''
+    webhook_alert_url_default: ''
+    webhook_alert_max_retries_default: 3
+    webhook_alert_base_delay_ms_default: 1000
+    circuit_breaker_failure_threshold_default: 5
+    circuit_breaker_recovery_time_default: 60
+    metrics_enabled_default: true
+    otel_enabled_default: false
+    otel_service_name_default: 'sentinel-php'
+    otel_exporter_endpoint_default: ''
+    log_format_default: 'json'
+    alert_email_from_default: 'sentinel@example.com'
+    dto_default_namespace: 'App\Dto\Generated'
+    dto_output_directory: 'src/Dto/Generated'
+    dto_auto_generate_default: false
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    _instanceof:
+        App\Service\Alert\AlertChannelInterface:
+            tags: ['app.alert_channel']
+
+    App\:
+        resource: '../src/'
+
+    App\Http\HttpClientInterface:
+        factory: ['@App\Http\HttpClientFactory', 'create']
+
+    App\Http\SwooleHttpClient:
+        arguments:
+            $timeout: '%proxy.timeout%'
+            $connectTimeout: '%proxy.connect_timeout%'
+
+    App\Http\GuzzleHttpClientAdapter:
+        arguments:
+            $client: '@GuzzleHttp\Client'
+            $timeout: '%proxy.timeout%'
+            $connectTimeout: '%proxy.connect_timeout%'
+
+    GuzzleHttp\Client: ~
+
+    App\Validation\TargetUrlValidatorInterface:
+        class: App\Validation\TargetUrlValidator
+
+    App\Service\ProxyService:
+        arguments:
+            $requestContext: '@App\Service\RequestContext'
+            $statusService: '@App\Service\StatusServiceInterface'
+            $rateLimiter: '@App\Security\RateLimiterInterface'
+
+    App\Security\RateLimiterInterface:
+        class: App\Security\RateLimiter
+        arguments:
+            $redisClient: '@App\Redis\RedisClientInterface'
+            $maxRequests: '%env(default:rate_limit_max_requests_default:int:RATE_LIMIT_MAX_REQUESTS)%'
+            $windowSeconds: '%env(default:rate_limit_window_seconds_default:int:RATE_LIMIT_WINDOW_SECONDS)%'
+
+    App\Security\TokenAuthenticatorInterface:
+        class: App\Security\TokenAuthenticator
+        arguments:
+            $cache: '@cache.app'
+
+    App\Service\HealthCheckServiceInterface:
+        class: App\Service\HealthCheckService
+        arguments:
+            $cache: '@cache.app'
+            $healthCheckUrl: '%health.check_url%'
+
+    App\Redis\RedisClientInterface:
+        class: App\Redis\AdaptiveRedisClient
+        arguments:
+            $standardClient: '@App\Redis\RedisClient'
+            $swoolePool: '@App\Redis\SwooleRedisPool'
+
+    App\Redis\SwooleRedisPool:
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
+            $poolSize: '%env(default:redis_pool_size_default:int:REDIS_POOL_SIZE)%'
+
+    App\Redis\RedisClient:
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
+
+    App\Swoole\SwooleSessionStorageFactory:
+        arguments:
+            $redis: '@App\Redis\RedisClientInterface'
+            $ttl: 86400
+            $prefix: 'sf_sess_'
+
+    App\Service\StatusServiceInterface:
+        class: App\Service\StatusService
+        public: true
+        arguments:
+            $cache: '@cache.app'
+            $redisClient: '@App\Redis\RedisClientInterface'
+
+    App\Security\IpAccessCheckerInterface:
+        class: App\Security\IpAccessChecker
+        arguments:
+            $allowedIps: '%status.allowed_ips%'
+
+    App\Service\RequestContext:
+        public: true
+
+    Psr\Log\LoggerInterface:
+        alias: 'monolog.logger'
+        public: true
+
+    App\EventListener\ExceptionListener:
+        arguments:
+            $debug: '%kernel.debug%'
+
+    # Sentinel Library Classes (can be injected directly)
+    SentinelPHP\Schema\Generator: ~
+    SentinelPHP\Schema\GeneratorInterface: '@SentinelPHP\Schema\Generator'
+    SentinelPHP\Schema\Merger: ~
+    SentinelPHP\Schema\MergerInterface: '@SentinelPHP\Schema\Merger'
+    SentinelPHP\Schema\Validator: ~
+    SentinelPHP\Schema\ValidatorInterface: '@SentinelPHP\Schema\Validator'
+    SentinelPHP\Drift\Classifier: ~
+    SentinelPHP\Drift\ClassifierInterface: '@SentinelPHP\Drift\Classifier'
+    SentinelPHP\Drift\Diff\JsonDiff: ~
+    SentinelPHP\Drift\Diff\JsonDiffInterface: '@SentinelPHP\Drift\Diff\JsonDiff'
+    SentinelPHP\Redact\PiiRedactorInterface: '@SentinelPHP\Redact\PiiRedactor'
+    SentinelPHP\Encrypt\Encryptor:
+        arguments:
+            $encryptionKey: '%env(default::string:SENTINEL_ENCRYPTION_KEY)%'
+    SentinelPHP\Encrypt\EncryptorInterface: '@SentinelPHP\Encrypt\Encryptor'
+
+    App\Repository\ApiSchemaRepositoryInterface:
+        class: App\Repository\CachedApiSchemaRepository
+        arguments:
+            $inner: '@App\Repository\ApiSchemaRepository'
+            $cache: '@cache.app'
+            $cacheTtl: '%env(default:schema.cache_ttl_default:int:SCHEMA_CACHE_TTL)%'
+
+    App\Service\BodyCompressionServiceInterface:
+        class: App\Service\BodyCompressionService
+
+    App\MessageHandler\RequestLogMessageHandler:
+        arguments:
+            $compressAuditLogs: '%env(default:compress_audit_logs_default:bool:SENTINEL_COMPRESS_AUDIT_LOGS)%'
+
+    App\Repository\DriftPayloadRepositoryInterface:
+        class: App\Repository\DriftPayloadRepository
+
+    App\Command\RetentionPurgeCommand:
+        arguments:
+            $defaultRetentionDays: '%retention.days%'
+            $defaultBatchSize: '%retention.batch_size%'
+
+    # Data Protection - library classes with configuration
+    SentinelPHP\Redact\PiiRedactor:
+        arguments:
+            $additionalPatternsJson: '%env(default::string:SENTINEL_REDACTION_PATTERNS)%'
+            $additionalFieldPathsJson: '%env(default::string:SENTINEL_REDACTION_FIELD_PATHS)%'
+            $enableDefaultPatterns: '%env(default:pii_redactor.enable_default_patterns:bool:SENTINEL_REDACTION_ENABLE_DEFAULTS)%'
+
+    App\Service\DataProtection\DataProtectionServiceInterface:
+        class: App\Service\DataProtection\DataProtectionService
+        arguments:
+            $defaultStrategy: '%env(default:data_protection_strategy_default:string:SENTINEL_DATA_PROTECTION_STRATEGY)%'
+
+    App\Service\Alert\SlackAlertChannel:
+        arguments:
+            $webhookUrl: '%env(default:slack_alert_webhook_url_default:string:SLACK_ALERT_WEBHOOK_URL)%'
+            $maxAlertsPerMinute: '%env(default:slack_alert_rate_limit_default:int:SLACK_ALERT_RATE_LIMIT)%'
+
+    App\Service\Alert\CircuitBreaker:
+        arguments:
+            $redisClient: '@App\Redis\RedisClientInterface'
+            $failureThreshold: '%env(default:circuit_breaker_failure_threshold_default:int:CIRCUIT_BREAKER_FAILURE_THRESHOLD)%'
+            $recoveryTimeSeconds: '%env(default:circuit_breaker_recovery_time_default:int:CIRCUIT_BREAKER_RECOVERY_TIME)%'
+
+    App\Service\Alert\WebhookAlertChannel:
+        arguments:
+            $webhookUrl: '%env(default:webhook_alert_url_default:string:WEBHOOK_ALERT_URL)%'
+            $maxRetries: '%env(default:webhook_alert_max_retries_default:int:WEBHOOK_ALERT_MAX_RETRIES)%'
+            $baseDelayMs: '%env(default:webhook_alert_base_delay_ms_default:int:WEBHOOK_ALERT_BASE_DELAY_MS)%'
+            $circuitBreaker: '@App\Service\Alert\CircuitBreaker'
+
+    App\Service\Alert\AlertDispatcherServiceInterface:
+        class: App\Service\Alert\AlertDispatcherService
+        arguments:
+            $channels: !tagged_iterator app.alert_channel
+
+    # Metrics
+    App\Service\Metrics\MetricsCollectorInterface:
+        class: App\Service\Metrics\MetricsCollector
+        arguments:
+            $enabled: '%env(default:metrics_enabled_default:bool:METRICS_ENABLED)%'
+
+    App\Controller\MetricsController:
+        arguments:
+            $metricsEnabled: '%env(default:metrics_enabled_default:bool:METRICS_ENABLED)%'
+
+    # Tracing
+    App\Service\Tracing\TracingServiceInterface:
+        class: App\Service\Tracing\TracingService
+        arguments:
+            $enabled: '%env(default:otel_enabled_default:bool:OTEL_ENABLED)%'
+            $serviceName: '%env(default:otel_service_name_default:string:OTEL_SERVICE_NAME)%'
+            $exporterEndpoint: '%env(default:otel_exporter_endpoint_default:string:OTEL_EXPORTER_OTLP_ENDPOINT)%'
+
+    # Dashboard Services
+    App\Service\Dashboard\DashboardStatsServiceInterface:
+        class: App\Service\Dashboard\DashboardStatsService
+
+    App\Service\Dashboard\ServiceHealthServiceInterface:
+        class: App\Service\Dashboard\ServiceHealthService
+
+    App\Service\Dashboard\LatencyMetricsServiceInterface:
+        class: App\Service\Dashboard\LatencyMetricsService
+
+    App\Service\Dashboard\HealthStatusTrackerServiceInterface:
+        class: App\Service\Dashboard\HealthStatusTrackerService
+
+    App\Service\Alert\LatencyAlertServiceInterface:
+        class: App\Service\Alert\LatencyAlertService
+
+    App\Service\Alert\AlertTestServiceInterface:
+        class: App\Service\Alert\AlertTestService
+        arguments:
+            $mailer: null
+            $emailFromAddress: '%env(default:alert_email_from_default:string:ALERT_EMAIL_FROM)%'
+
+    # User Preferences
+    App\Repository\UserPreferencesRepositoryInterface:
+        class: App\Repository\UserPreferencesRepository
+
+    App\Service\UserPreferencesServiceInterface:
+        class: App\Service\UserPreferencesService
+
+    # Mercure
+    App\Service\Mercure\MercurePublisherServiceInterface:
+        class: App\Service\Mercure\MercurePublisherService
+
+    # DTO Generation Configuration (shared service)
+    App\ValueObject\DtoGeneratorConfig:
+        arguments:
+            $defaultNamespace: '%sentinel_dto.default_namespace%'
+            $outputDirectory: '%sentinel_dto.output_directory%'
+            $phpVersion: '%sentinel_dto.php_version%'
+            $readonlyProperties: '%sentinel_dto.readonly_properties%'
+            $generateGetters: '%sentinel_dto.generate_getters%'
+            $generateSerialization: '%sentinel_dto.generate_serialization%'
+            $generateJsonSerializable: '%sentinel_dto.generate_json_serializable%'
+            $generateSerializerAttributes: '%sentinel_dto.generate_serializer_attributes%'
+            $generateValidation: '%sentinel_dto.generate_validation%'
+            $baseClass: '%sentinel_dto.template.base_class%'
+            $interfaces: '%sentinel_dto.template.interfaces%'
+            $traits: '%sentinel_dto.template.traits%'
+            $propertyMappings: '%sentinel_dto.property_mappings%'
+            $excludedProperties: '%sentinel_dto.excluded_properties%'
+
+    # DTO Generation Services
+    App\Service\Dto\DtoNamingStrategyInterface:
+        class: App\Service\Dto\DefaultDtoNamingStrategy
+
+    SentinelPHP\Dto\TypeMapper:
+        arguments:
+            $enumNamespace: '%sentinel_dto.default_namespace%\Enum'
+    SentinelPHP\Dto\TypeMapperInterface: '@SentinelPHP\Dto\TypeMapper'
+
+    App\Service\Dto\PhpClassBuilderInterface:
+        class: App\Service\Dto\PhpClassBuilder
+
+    App\Service\Dto\DtoGeneratorServiceInterface:
+        class: App\Service\Dto\DtoGeneratorService
+        arguments:
+            $typeMapper: '@SentinelPHP\Dto\TypeMapperInterface'
+            $classBuilder: '@App\Service\Dto\PhpClassBuilderInterface'
+            $config: '@App\ValueObject\DtoGeneratorConfig'
+
+    App\Service\Dto\DtoStorageServiceInterface:
+        class: App\Service\Dto\DtoStorageService
+
+    App\Service\Dto\DtoExporterServiceInterface:
+        class: App\Service\Dto\DtoExporterService
+        public: true
+        arguments:
+            $config: '@App\ValueObject\DtoGeneratorConfig'
+
+    Symfony\Component\Filesystem\Filesystem: ~
+
+    # DTO Auto-Generation
+    App\EventSubscriber\DtoAutoGeneratorSubscriber:
+        arguments:
+            $globalAutoGenerateEnabled: '%sentinel_dto.auto_generate%'

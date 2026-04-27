@@ -1,0 +1,130 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Import Schema{% endblock %}
+{% block header_title %}Import Schema{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_schemas') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Schemas
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-upload me-2"></i>Import JSON Schema
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ path('dashboard_schemas_import') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="_token" value="{{ csrf_token('import_schema') }}">
+
+                        <div class="mb-4">
+                            <label for="schema_file" class="form-label">Schema File <span class="text-danger">*</span></label>
+                            <input type="file" name="schema_file" id="schema_file" class="form-control" 
+                                   accept=".json,application/json" required>
+                            <div class="form-text">Upload a valid JSON Schema file (.json)</div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="token_id" class="form-label">API Token <span class="text-danger">*</span></label>
+                                <select name="token_id" id="token_id" class="form-select" required>
+                                    <option value="">Select a token...</option>
+                                    {% for token in tokens %}
+                                        <option value="{{ token.id }}">{{ token.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">The token this schema will be associated with</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="target_host" class="form-label">Target Host <span class="text-danger">*</span></label>
+                                <input type="text" name="target_host" id="target_host" class="form-control" 
+                                       placeholder="api.example.com" required>
+                                <div class="form-text">The API host this schema applies to</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="endpoint_path" class="form-label">Endpoint Path <span class="text-danger">*</span></label>
+                                <input type="text" name="endpoint_path" id="endpoint_path" class="form-control" 
+                                       placeholder="/api/v1/users/{id}" required>
+                                <div class="form-text">The API endpoint path (use {param} for path parameters)</div>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="http_method" class="form-label">HTTP Method <span class="text-danger">*</span></label>
+                                <select name="http_method" id="http_method" class="form-select" required>
+                                    {% for method in httpMethods %}
+                                        <option value="{{ method }}">{{ method }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="schema_type" class="form-label">Schema Type <span class="text-danger">*</span></label>
+                                <select name="schema_type" id="schema_type" class="form-select" required>
+                                    {% for type in schemaTypes %}
+                                        <option value="{{ type.value }}">{{ type.value|capitalize }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" name="set_as_master" id="set_as_master" class="form-check-input" value="1">
+                                <label for="set_as_master" class="form-check-label">
+                                    <strong>Set as Master Schema</strong>
+                                </label>
+                                <div class="form-text">
+                                    If checked, this schema will become the master schema for this endpoint. 
+                                    Any existing master schema will be demoted.
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ path('dashboard_schemas') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-upload me-1"></i> Import Schema
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Import Guidelines
+                </div>
+                <div class="card-body">
+                    <h6>Supported Format</h6>
+                    <p>The imported file must be a valid JSON Schema (draft-07 or compatible). Example structure:</p>
+                    <pre class="bg-dark text-light p-3 rounded"><code>{
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "name": { "type": "string" },
+    "email": { "type": "string", "format": "email" }
+  },
+  "required": ["id", "name"]
+}</code></pre>
+
+                    <h6 class="mt-4">Versioning</h6>
+                    <p class="mb-0">
+                        If a schema already exists for the specified endpoint, the imported schema will be added as a new version.
+                        The version number will be automatically incremented.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

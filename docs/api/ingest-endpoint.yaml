@@ -1,0 +1,260 @@
+openapi: 3.1.0
+info:
+  title: SentinelPHP Ingest API
+  description: |
+    API endpoint for ingesting API call records from external applications.
+    
+    This endpoint allows applications using the `sentinelphp/core` package to send
+    intercepted API calls to the SentinelPHP server for logging, schema learning,
+    and drift detection.
+    
+    All requests require Bearer token authentication using an API token.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API token obtained from the SentinelPHP dashboard
+
+  schemas:
+    ApiCallRecord:
+      type: object
+      required:
+        - method
+        - url
+        - statusCode
+        - latencyMs
+      properties:
+        method:
+          type: string
+          description: HTTP method of the intercepted request
+          enum: [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
+          example: "GET"
+        url:
+          type: string
+          format: uri
+          description: Full URL of the intercepted request
+          example: "https://api.example.com/users/123"
+        statusCode:
+          type: integer
+          description: HTTP status code of the response
+          minimum: 100
+          maximum: 599
+          example: 200
+        latencyMs:
+          type: number
+          format: float
+          description: Request latency in milliseconds
+          minimum: 0
+          example: 45.5
+        timestamp:
+          type: string
+          format: date-time
+          description: When the API call was made (ISO 8601)
+          example: "2024-01-15T10:30:00+00:00"
+        requestHeaders:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: array
+                items:
+                  type: string
+          description: Request headers (key-value pairs)
+          example:
+            Accept: "application/json"
+            Authorization: "Bearer ***"
+        requestBody:
+          type: string
+          nullable: true
+          description: Request body (if any)
+          example: '{"name": "John Doe"}'
+        responseHeaders:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: array
+                items:
+                  type: string
+          description: Response headers (key-value pairs)
+          example:
+            Content-Type: "application/json"
+            X-Request-Id: "abc123"
+        responseBody:
+          type: string
+          nullable: true
+          description: Response body (if any)
+          example: '{"id": 123, "name": "John Doe"}'
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for this record (UUID v7 recommended)
+          example: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+
+    IngestSuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Ingested successfully"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Invalid JSON in request body"
+
+paths:
+  /ingest:
+    post:
+      operationId: ingestApiCall
+      summary: Ingest an API call record
+      description: |
+        Receives an API call record from an external application and processes it
+        for logging, schema learning, and drift detection.
+        
+        **Processing:**
+        1. **Request Logging** - The call is logged to the database (based on token's log level)
+        2. **Schema Learning** - If the token is in Learning mode, the response schema is learned
+        3. **Schema Validation** - If the token is in Validating mode, the response is validated against the master schema
+        
+        **Use Cases:**
+        - Applications using `sentinelphp/core` with `SentinelHttpStorage`
+        - Microservices sending API call data to a central SentinelPHP instance
+        - Batch import of historical API call data
+      tags:
+        - Ingest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiCallRecord'
+            examples:
+              simple:
+                summary: Simple GET request
+                value:
+                  method: "GET"
+                  url: "https://api.example.com/users/123"
+                  statusCode: 200
+                  latencyMs: 45.5
+                  responseBody: '{"id": 123, "name": "John Doe"}'
+              full:
+                summary: Full request with all fields
+                value:
+                  method: "POST"
+                  url: "https://api.example.com/orders"
+                  statusCode: 201
+                  latencyMs: 120.0
+                  timestamp: "2024-01-15T10:30:00+00:00"
+                  requestHeaders:
+                    Content-Type: "application/json"
+                    Accept: "application/json"
+                  requestBody: '{"product_id": 42, "quantity": 2}'
+                  responseHeaders:
+                    Content-Type: "application/json"
+                    X-Request-Id: "req-abc123"
+                  responseBody: '{"order_id": "ORD-123", "status": "created"}'
+                  id: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+      responses:
+        '200':
+          description: Successfully ingested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestSuccessResponse'
+              example:
+                success: true
+                message: "Ingested successfully"
+        '400':
+          description: Bad request (invalid JSON, missing required fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyBody:
+                  summary: Empty request body
+                  value:
+                    error: true
+                    message: "Request body is required"
+                invalidJson:
+                  summary: Invalid JSON
+                  value:
+                    error: true
+                    message: "Invalid JSON in request body"
+                missingField:
+                  summary: Missing required field
+                  value:
+                    error: true
+                    message: "Missing required field: method"
+        '401':
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingAuth:
+                  summary: Missing Authorization header
+                  value:
+                    error: true
+                    message: "Missing or invalid Authorization header"
+                invalidToken:
+                  summary: Invalid API token
+                  value:
+                    error: true
+                    message: "Invalid API token"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: "Internal server error"
+
+tags:
+  - name: Ingest
+    description: |
+      Endpoints for ingesting API call records from external applications.
+      
+      **Integration with sentinelphp/core:**
+      
+      ```php
+      use SentinelPHP\Core\Storage\SentinelHttpStorage;
+      
+      $storage = new SentinelHttpStorage(
+          httpClient: $guzzle,
+          requestFactory: $httpFactory,
+          streamFactory: $httpFactory,
+          baseUrl: 'https://sentinel.example.com',
+          apiToken: 'your-token',
+      );
+      ```

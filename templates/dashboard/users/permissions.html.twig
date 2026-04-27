@@ -1,0 +1,85 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Permissions: {{ user.email }}{% endblock %}
+{% block header_title %}Manage Permissions{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_users_show', {id: user.id}) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to User
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        Token Access for {{ user.email }}
+                    </h5>
+                </div>
+                <form method="post" action="{{ path('dashboard_users_permissions', {id: user.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('permissions_' ~ user.id) }}">
+
+                    <div class="card-body">
+                        <p class="text-muted mb-4">
+                            Select the API tokens this user should have access to. Users can only view data related to tokens they have been granted access to.
+                        </p>
+
+                        {% if allTokens|length > 0 %}
+                            <div class="list-group">
+                                {% for token in allTokens %}
+                                    <label class="list-group-item list-group-item-action d-flex align-items-center">
+                                        <input type="checkbox"
+                                               name="tokens[]"
+                                               value="{{ token.id }}"
+                                               class="form-check-input me-3"
+                                               {{ token.id|replace({'-': ''}) in currentTokenIds|map(id => id|replace({'-': ''})) ? 'checked' : '' }}>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="bi bi-key me-2 text-muted"></i>
+                                                    <strong>{{ token.name }}</strong>
+                                                </div>
+                                                <div>
+                                                    <span class="badge bg-{{ token.mode.value == 'learning' ? 'info' : (token.mode.value == 'validating' ? 'success' : 'secondary') }} me-2">
+                                                        {{ token.mode.value|capitalize }}
+                                                    </span>
+                                                    {% if token.isActive %}
+                                                        <span class="badge bg-success">Active</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Inactive</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% if token.allowedTargets|length > 0 %}
+                                                <small class="text-muted d-block mt-1">
+                                                    Targets: {{ token.allowedTargets|join(', ') }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No API tokens exist yet. Create tokens first before assigning permissions.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer d-flex justify-content-between">
+                        <a href="{{ path('dashboard_users_show', {id: user.id}) }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" {{ allTokens|length == 0 ? 'disabled' : '' }}>
+                            <i class="bi bi-check-lg me-1"></i>Save Permissions
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

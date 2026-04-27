@@ -1,0 +1,225 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}{{ token.name }} - Activity{% endblock %}
+{% block header_title %}Activity: {{ token.name }}{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_tokens_show', {id: token.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to Token
+    </a>
+    <a href="{{ path('dashboard_tokens') }}" class="btn btn-outline-secondary btn-sm me-3">
+        <i class="bi bi-list me-1"></i> All Tokens
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ pagination.totalCount|number_format }}</h3>
+                    <small class="text-muted">Total Requests</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 {{ drifts|length > 0 ? 'text-warning' : '' }}">{{ drifts|length }}</h3>
+                    <small class="text-muted">Recent Drifts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <span class="badge {{ token.isActive ? 'bg-success' : 'bg-danger' }} fs-6">
+                        {{ token.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                    <br>
+                    <small class="text-muted">Token Status</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-journal-text me-2"></i>Request Log
+                    </h5>
+                    <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Host</th>
+                                    <th>Path</th>
+                                    <th>Status</th>
+                                    <th>Latency</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in requests %}
+                                    <tr>
+                                        <td><span class="badge bg-dark">{{ request.requestMethod }}</span></td>
+                                        <td><small>{{ request.targetHost }}</small></td>
+                                        <td>
+                                            <code class="small text-truncate d-inline-block" style="max-width: 200px;" title="{{ request.requestPath }}">
+                                                {{ request.requestPath }}
+                                            </code>
+                                        </td>
+                                        <td>
+                                            {% if request.responseStatusCode >= 500 %}
+                                                <span class="badge bg-danger">{{ request.responseStatusCode }}</span>
+                                            {% elseif request.responseStatusCode >= 400 %}
+                                                <span class="badge bg-warning text-dark">{{ request.responseStatusCode }}</span>
+                                            {% elseif request.responseStatusCode >= 300 %}
+                                                <span class="badge bg-info">{{ request.responseStatusCode }}</span>
+                                            {% else %}
+                                                <span class="badge bg-success">{{ request.responseStatusCode }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if request.latencyMs > 1000 %}
+                                                <span class="text-danger">{{ request.latencyMs }}ms</span>
+                                            {% elseif request.latencyMs > 500 %}
+                                                <span class="text-warning">{{ request.latencyMs }}ms</span>
+                                            {% else %}
+                                                <span>{{ request.latencyMs }}ms</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small class="text-muted" title="{{ request.createdAt|date('Y-m-d H:i:s') }}">
+                                                {{ request.createdAt|date('M j, H:i:s') }}
+                                            </small>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                            No requests recorded yet.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if pagination.totalPages > 1 %}
+                    <div class="card-footer">
+                        <nav aria-label="Request pagination">
+                            <ul class="pagination pagination-sm mb-0 justify-content-center">
+                                <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                                    <a class="page-link" href="{{ path('dashboard_tokens_activity', {id: token.id, page: pagination.page - 1}) }}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                                    <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                        <a class="page-link" href="{{ path('dashboard_tokens_activity', {id: token.id, page: p}) }}">{{ p }}</a>
+                                    </li>
+                                {% endfor %}
+                                <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                                    <a class="page-link" href="{{ path('dashboard_tokens_activity', {id: token.id, page: pagination.page + 1}) }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Recent Drifts
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for drift in drifts %}
+                            <a href="{{ path('dashboard_drifts_show', {id: drift.id}) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div>
+                                        {% if drift.severity.value == 'critical' %}
+                                            <span class="badge bg-danger me-1">Critical</span>
+                                        {% elseif drift.severity.value == 'warning' %}
+                                            <span class="badge bg-warning text-dark me-1">Warning</span>
+                                        {% else %}
+                                            <span class="badge bg-info me-1">Info</span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary">{{ drift.driftType.value|replace({'_': ' '}) }}</span>
+                                    </div>
+                                    <small class="text-muted">{{ drift.createdAt|date('M j') }}</small>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <code>{{ drift.path|length > 35 ? drift.path[:35] ~ '...' : drift.path }}</code>
+                                </small>
+                                <small class="text-muted">
+                                    <span class="badge bg-dark">{{ drift.schema.httpMethod }}</span>
+                                    {{ drift.schema.endpointPath|length > 25 ? drift.schema.endpointPath[:25] ~ '...' : drift.schema.endpointPath }}
+                                </small>
+                            </a>
+                        {% else %}
+                            <div class="list-group-item text-center text-muted py-4">
+                                <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                                No drifts detected
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if drifts|length > 0 %}
+                    <div class="card-footer text-center">
+                        <a href="{{ path('dashboard_drifts', {token_id: token.id}) }}" class="btn btn-sm btn-outline-primary">
+                            View All Drifts <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Token Info
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-5">Name</dt>
+                        <dd class="col-7">{{ token.name }}</dd>
+
+                        <dt class="col-5">Mode</dt>
+                        <dd class="col-7">
+                            {% if token.mode.value == 'learning' %}
+                                <span class="badge bg-info">Learning</span>
+                            {% elseif token.mode.value == 'validating' %}
+                                <span class="badge bg-success">Validating</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Passive</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-5">Targets</dt>
+                        <dd class="col-7">
+                            {% if token.allowedTargets|length == 0 %}
+                                <span class="text-muted">All</span>
+                            {% else %}
+                                {{ token.allowedTargets|length }} host(s)
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-5">Created</dt>
+                        <dd class="col-7">{{ token.createdAt|date('M j, Y') }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

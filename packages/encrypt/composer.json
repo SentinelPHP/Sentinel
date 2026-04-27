@@ -1,0 +1,40 @@
+{
+    "name": "sentinelphp/encrypt",
+    "description": "Sodium-based encryption library for sensitive data",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["encryption", "sodium", "security", "data-protection"],
+    "homepage": "https://github.com/SentinelPHP/encrypt",
+    "authors": [
+        {
+            "name": "SentinelPHP Contributors"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/SentinelPHP/encrypt/issues",
+        "source": "https://github.com/SentinelPHP/encrypt"
+    },
+    "require": {
+        "php": ">=8.2",
+        "ext-sodium": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^12.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SentinelPHP\\Encrypt\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SentinelPHP\\Encrypt\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}

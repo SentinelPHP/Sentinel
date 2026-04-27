@@ -1,0 +1,41 @@
+#!/bin/bash
+
+## Description: Start the Swoole HTTP server with hot reload
+## Usage: swoole [--no-watch]
+## Example: ddev swoole
+
+set -e
+
+WATCH_DIRS="/var/www/html/src /var/www/html/config"
+
+echo "Starting Swoole server on port 8080..."
+echo "Access via: https://sentinelphp.ddev.site:8080"
+echo "Press Ctrl+C to stop"
+echo ""
+
+if [[ "$1" == "--no-watch" ]]; then
+    php /var/www/html/bin/swoole-server
+else
+    echo "Hot reload enabled - watching src/ and config/ for changes"
+    echo ""
+
+    cleanup() {
+        echo ""
+        echo "Shutting down..."
+        kill $PID 2>/dev/null || true
+        exit 0
+    }
+    trap cleanup SIGINT SIGTERM
+
+    while true; do
+        php /var/www/html/bin/swoole-server &
+        PID=$!
+
+        inotifywait -r -q -e modify,create,delete $WATCH_DIRS --include '.*\.(php|yaml)$' || true
+
+        echo "Change detected, restarting server..."
+        kill $PID 2>/dev/null || true
+        wait $PID 2>/dev/null || true
+        sleep 0.5
+    done
+fi

@@ -1,0 +1,52 @@
+# DTO Generation Configuration
+# These settings control how PHP DTOs are generated from learned JSON schemas.
+
+parameters:
+    # Default namespace for generated DTO classes
+    sentinel_dto.default_namespace: '%env(default:dto_default_namespace:string:SENTINEL_DTO_NAMESPACE)%'
+
+    # Output directory for exported DTO files (relative to project root)
+    sentinel_dto.output_directory: '%env(default:dto_output_directory:string:SENTINEL_DTO_OUTPUT_DIR)%'
+
+    # Target PHP version (8.2 or 8.3)
+    sentinel_dto.php_version: '8.2'
+
+    # Generate readonly properties (PHP 8.1+)
+    sentinel_dto.readonly_properties: true
+
+    # Generate getter methods for properties
+    sentinel_dto.generate_getters: false
+
+    # Generate fromArray/toArray serialization methods
+    sentinel_dto.generate_serialization: true
+
+    # Generate JsonSerializable implementation
+    sentinel_dto.generate_json_serializable: true
+
+    # Generate Symfony Serializer attributes (#[Groups], #[SerializedName])
+    sentinel_dto.generate_serializer_attributes: false
+
+    # Generate Symfony Validator attributes and validate() method
+    sentinel_dto.generate_validation: false
+
+    # Enable auto-generation of DTOs when schemas are promoted
+    sentinel_dto.auto_generate: '%env(default:dto_auto_generate_default:bool:SENTINEL_DTO_AUTO_GENERATE)%'
+
+    # DTO Template Configuration
+    # Base class that all generated DTOs should extend (null for no base class)
+    sentinel_dto.template.base_class: ~
+
+    # Interfaces that all generated DTOs should implement (in addition to JsonSerializable if enabled)
+    sentinel_dto.template.interfaces: []
+
+    # Traits that all generated DTOs should use
+    sentinel_dto.template.traits: []
+
+    # Property Transformation Rules
+    # Global property name mappings (JSON key => PHP property name)
+    # Example: { 'user_id': 'userId', 'created_at': 'createdAt' }
+    sentinel_dto.property_mappings: []
+
+    # Properties to exclude from generation (list of JSON paths)
+    # Example: ['$.internal_id', '$.debug_info']
+    sentinel_dto.excluded_properties: []

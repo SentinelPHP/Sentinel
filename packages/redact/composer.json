@@ -1,0 +1,39 @@
+{
+    "name": "sentinelphp/redact",
+    "description": "PII redaction library for JSON payloads and strings",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["pii", "redaction", "privacy", "data-protection", "gdpr"],
+    "homepage": "https://github.com/SentinelPHP/redact",
+    "authors": [
+        {
+            "name": "SentinelPHP Contributors"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/SentinelPHP/redact/issues",
+        "source": "https://github.com/SentinelPHP/redact"
+    },
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^12.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SentinelPHP\\Redact\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SentinelPHP\\Redact\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}

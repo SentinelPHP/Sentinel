@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+use App\Kernel;
+use App\Swoole\SwooleRunner;
+use Symfony\Component\Dotenv\Dotenv;
+
+if (!is_dir(dirname(__DIR__).'/vendor')) {
+    throw new LogicException('Dependencies are missing. Try running "composer install".');
+}
+
+require dirname(__DIR__).'/vendor/autoload.php';
+
+// Load environment variables
+if (class_exists(Dotenv::class) && is_file(dirname(__DIR__).'/.env')) {
+    (new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
+}
+
+$env = $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev';
+$debug = (bool) ($_SERVER['APP_DEBUG'] ?? $_ENV['APP_DEBUG'] ?? ($env !== 'prod'));
+
+// Disable coroutine hooks during kernel boot
+if (extension_loaded('swoole')) {
+    \Swoole\Runtime::enableCoroutine(false);
+}
+
+$kernel = new Kernel($env, $debug);
+
+$runner = new SwooleRunner($kernel);
+
+try {
+    exit($runner->run());
+} catch (\Swoole\ExitException $e) {
+    // Expected during shutdown - Swoole intercepts exit() calls
+    exit((int) $e->getStatus());
+}

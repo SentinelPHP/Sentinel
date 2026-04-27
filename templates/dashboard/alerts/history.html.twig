@@ -1,0 +1,207 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Alert History{% endblock %}
+{% block header_title %}Alert History{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary btn-sm me-3">
+        <i class="bi bi-arrow-left me-1"></i> Back to Configurations
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-body d-flex align-items-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-check-circle text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ stats.success|number_format }}</h3>
+                        <small class="text-muted">Successful Alerts</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-body d-flex align-items-center">
+                    <div class="rounded-circle bg-danger bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-x-circle text-danger fs-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ stats.failure|number_format }}</h3>
+                        <small class="text-muted">Failed Alerts</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_alerts_history') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="channelType" class="form-label">Channel Type</label>
+                    <select name="channelType" id="channelType" class="form-select form-select-sm">
+                        <option value="">All Channels</option>
+                        <option value="slack" {{ filters.channelType == 'slack' ? 'selected' : '' }}>Slack</option>
+                        <option value="webhook" {{ filters.channelType == 'webhook' ? 'selected' : '' }}>Webhook</option>
+                        <option value="email" {{ filters.channelType == 'email' ? 'selected' : '' }}>Email</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="success" {{ filters.status == 'success' ? 'selected' : '' }}>Success</option>
+                        <option value="failure" {{ filters.status == 'failure' ? 'selected' : '' }}>Failure</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_alerts_history') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-clock-history me-2"></i>Alert History
+            </h5>
+            <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Channel</th>
+                            <th>Status</th>
+                            <th>Configuration</th>
+                            <th>Drift</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <small title="{{ log.createdAt|date('Y-m-d H:i:s') }}">
+                                        {{ log.createdAt|date('M j, H:i:s') }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if log.channelType.value == 'slack' %}
+                                        <span class="badge bg-purple"><i class="bi bi-slack me-1"></i>Slack</span>
+                                    {% elseif log.channelType.value == 'webhook' %}
+                                        <span class="badge bg-info"><i class="bi bi-link-45deg me-1"></i>Webhook</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-envelope me-1"></i>Email</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.isSuccess %}
+                                        <span class="badge bg-success"><i class="bi bi-check me-1"></i>Success</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-x me-1"></i>Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.alertConfiguration %}
+                                        <a href="{{ path('dashboard_alerts_edit', {id: log.alertConfiguration.id}) }}" class="text-decoration-none">
+                                            <small>
+                                                {% if log.alertConfiguration.isGlobal %}
+                                                    <span class="badge bg-primary">Global</span>
+                                                {% else %}
+                                                    {{ log.alertConfiguration.token.name }}
+                                                {% endif %}
+                                            </small>
+                                        </a>
+                                    {% else %}
+                                        <small class="text-muted">(deleted)</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.drift %}
+                                        <a href="{{ path('dashboard_drifts_show', {id: log.drift.id}) }}" class="text-decoration-none">
+                                            <small class="font-monospace">{{ log.drift.id|slice(0, 8) }}...</small>
+                                        </a>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.errorMessage %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                data-bs-toggle="popover" 
+                                                data-bs-trigger="hover focus"
+                                                data-bs-content="{{ log.errorMessage }}"
+                                                title="Error Details">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                        </button>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                                    No alert history found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Alert history pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_alerts_history', filters|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_alerts_history', filters|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_alerts_history', filters|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+        });
+    </script>
+{% endblock %}

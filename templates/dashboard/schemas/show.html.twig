@@ -1,0 +1,378 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Schema: {{ schema.httpMethod }} {{ schema.endpointPath }}{% endblock %}
+{% block header_title %}Schema Details{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_schemas') }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to Schemas
+    </a>
+    <a href="{{ path('dashboard_schemas_versions', {id: schema.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-clock-history me-1"></i> Version History
+    </a>
+    <a href="{{ path('dashboard_schemas_export', {id: schema.id}) }}" class="btn btn-outline-info btn-sm me-2">
+        <i class="bi bi-download me-1"></i> Export JSON
+    </a>
+    {% if canEdit %}
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dtoPreviewModal">
+            <i class="bi bi-code-square me-1"></i> Generate DTO
+        </button>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Schema Information
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Endpoint</dt>
+                        <dd class="col-sm-8">
+                            <code>{{ schema.endpointPath }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Target Host</dt>
+                        <dd class="col-sm-8">
+                            <code>{{ schema.targetHost }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Method</dt>
+                        <dd class="col-sm-8">
+                            {% set methodColors = {
+                                'GET': 'success',
+                                'POST': 'primary',
+                                'PUT': 'warning',
+                                'PATCH': 'info',
+                                'DELETE': 'danger'
+                            } %}
+                            <span class="badge bg-{{ methodColors[schema.httpMethod] ?? 'secondary' }}">
+                                {{ schema.httpMethod }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Type</dt>
+                        <dd class="col-sm-8">
+                            {% if schema.schemaType.value == 'request' %}
+                                <span class="badge bg-info">Request</span>
+                            {% else %}
+                                <span class="badge bg-success">Response</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Version</dt>
+                        <dd class="col-sm-8">
+                            <form method="get" action="{{ path('dashboard_schemas_show', {id: schema.id}) }}" class="d-inline">
+                                <select name="version" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                                    {% for version in allVersions %}
+                                        <option value="{{ version.version }}" {{ version.version == schema.version ? 'selected' : '' }}>
+                                            v{{ version.version }}{% if version.isMaster %} (Master){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            {% if schema.isMaster %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-star-fill me-1"></i>Master
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Learned</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Samples</dt>
+                        <dd class="col-sm-8">{{ schema.sampleCount|number_format }}</dd>
+
+                        <dt class="col-sm-4">Token</dt>
+                        <dd class="col-sm-8">
+                            <a href="{{ path('dashboard_tokens_show', {id: schema.token.id}) }}">
+                                {{ schema.token.name }}
+                            </a>
+                        </dd>
+
+                        <dt class="col-sm-4">Created</dt>
+                        <dd class="col-sm-8">
+                            <small>{{ schema.createdAt|date('Y-m-d H:i:s') }}</small>
+                        </dd>
+
+                        <dt class="col-sm-4">Updated</dt>
+                        <dd class="col-sm-8">
+                            <small>{{ schema.updatedAt|date('Y-m-d H:i:s') }}</small>
+                        </dd>
+                    </dl>
+                </div>
+                {% if canEdit and not schema.isMaster %}
+                    <div class="card-footer">
+                        <form method="post" action="{{ path('dashboard_schemas_promote', {id: schema.id}) }}" 
+                              onsubmit="return confirm('Are you sure you want to promote this schema to master? This will demote the current master schema.');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('promote_schema_' ~ schema.id) }}">
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-star-fill me-1"></i> Promote to Master
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-diagram-3 me-2"></i>Schema Tree
+                </div>
+                <div class="card-body p-0">
+                    <div class="schema-tree p-3" data-controller="schema-tree">
+                        {{ include('dashboard/schemas/_tree.html.twig', {node: schema.jsonSchema, path: '$', depth: 0}) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-file-earmark-code me-2"></i>Generated DTO</span>
+                    {% if currentDto %}
+                        <a href="{{ path('dashboard_dtos_show', {id: currentDto.id}) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye me-1"></i> View
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if currentDto %}
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Class</dt>
+                            <dd class="col-sm-8"><code>{{ currentDto.className }}</code></dd>
+
+                            <dt class="col-sm-4">Namespace</dt>
+                            <dd class="col-sm-8"><code>{{ currentDto.namespace }}</code></dd>
+
+                            <dt class="col-sm-4">Version</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-primary">v{{ currentDto.version }}</span>
+                                {% if currentDto.isCurrent %}
+                                    <span class="badge bg-success">Current</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Generated</dt>
+                            <dd class="col-sm-8">
+                                <small>{{ currentDto.createdAt|date('Y-m-d H:i:s') }}</small>
+                            </dd>
+                        </dl>
+                        <div class="mt-3">
+                            <a href="{{ path('dashboard_dtos_download', {id: currentDto.id}) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-download me-1"></i> Download PHP
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            No DTO has been generated for this schema yet.
+                            {% if canEdit %}
+                                <br><small>Click "Generate DTO" to create one.</small>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if dtoVersions|length > 1 %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-clock-history me-2"></i>DTO Generation History
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for dto in dtoVersions %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-{{ dto.isCurrent ? 'primary' : 'secondary' }} me-2">v{{ dto.version }}</span>
+                                        <small class="text-muted">{{ dto.createdAt|date('Y-m-d H:i') }}</small>
+                                    </div>
+                                    <a href="{{ path('dashboard_dtos_show', {id: dto.id, version: dto.version}) }}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-code-square me-2"></i>JSON Schema
+                    </span>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="copySchema()">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <pre class="mb-0 p-3 bg-dark text-light" style="max-height: 70vh; overflow: auto;"><code id="schema-json" class="language-json">{{ schema.jsonSchema|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES')) }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if canEdit %}
+        <div class="modal fade" id="dtoPreviewModal" tabindex="-1" aria-labelledby="dtoPreviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dtoPreviewModalLabel">
+                            <i class="bi bi-code-square me-2"></i>Generate DTO Preview
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="dtoClassName" class="form-label">Custom Class Name</label>
+                                <input type="text" class="form-control" id="dtoClassName" placeholder="Leave empty for auto-generated name">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="dtoNamespace" class="form-label">Custom Namespace</label>
+                                <input type="text" class="form-control" id="dtoNamespace" placeholder="Leave empty for default namespace">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshPreviewBtn">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Preview
+                            </button>
+                        </div>
+                        <div id="dtoPreviewLoading" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Generating DTO preview...</p>
+                        </div>
+                        <div id="dtoPreviewError" class="alert alert-danger d-none"></div>
+                        <div id="dtoPreviewContent" class="d-none">
+                            <div class="mb-2">
+                                <strong>Class:</strong> <code id="previewClassName"></code>
+                                <br>
+                                <strong>Namespace:</strong> <code id="previewNamespace"></code>
+                            </div>
+                            <pre class="bg-dark text-light p-3 rounded" style="max-height: 50vh; overflow: auto;"><code id="previewPhpCode" class="language-php"></code></pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-outline-secondary" id="copyDtoBtn">
+                            <i class="bi bi-clipboard me-1"></i> Copy Code
+                        </button>
+                        <form method="post" action="{{ path('dashboard_schemas_generate_dto', {id: schema.id}) }}" class="d-inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('generate_dto_' ~ schema.id) }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Generate & Save
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        function copySchema() {
+            const schemaText = document.getElementById('schema-json').textContent;
+            navigator.clipboard.writeText(schemaText).then(() => {
+                const btn = event.target.closest('button');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check me-1"></i> Copied!';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            });
+        }
+
+        {% if canEdit %}
+        (function() {
+            const previewUrl = '{{ path('dashboard_schemas_preview_dto', {id: schema.id}) }}';
+
+            function initDtoPreview() {
+                const modal = document.getElementById('dtoPreviewModal');
+                if (!modal || modal.dataset.initialized) return;
+                modal.dataset.initialized = 'true';
+
+                const loadingEl = document.getElementById('dtoPreviewLoading');
+                const errorEl = document.getElementById('dtoPreviewError');
+                const contentEl = document.getElementById('dtoPreviewContent');
+                const classNameInput = document.getElementById('dtoClassName');
+                const namespaceInput = document.getElementById('dtoNamespace');
+                const refreshBtn = document.getElementById('refreshPreviewBtn');
+                const copyDtoBtn = document.getElementById('copyDtoBtn');
+
+                function loadPreview() {
+                    loadingEl.classList.remove('d-none');
+                    errorEl.classList.add('d-none');
+                    contentEl.classList.add('d-none');
+
+                    const params = new URLSearchParams();
+                    if (classNameInput.value) params.set('class_name', classNameInput.value);
+                    if (namespaceInput.value) params.set('namespace', namespaceInput.value);
+
+                    fetch(previewUrl + '?' + params.toString())
+                        .then(response => response.json())
+                        .then(data => {
+                            loadingEl.classList.add('d-none');
+                            if (data.error) {
+                                errorEl.textContent = data.error;
+                                errorEl.classList.remove('d-none');
+                            } else {
+                                document.getElementById('previewClassName').textContent = data.className;
+                                document.getElementById('previewNamespace').textContent = data.namespace;
+                                document.getElementById('previewPhpCode').textContent = data.phpCode;
+                                contentEl.classList.remove('d-none');
+                            }
+                        })
+                        .catch(err => {
+                            loadingEl.classList.add('d-none');
+                            errorEl.textContent = 'Failed to load preview: ' + err.message;
+                            errorEl.classList.remove('d-none');
+                        });
+                }
+
+                modal.addEventListener('shown.bs.modal', loadPreview);
+                refreshBtn.addEventListener('click', loadPreview);
+
+                copyDtoBtn.addEventListener('click', function() {
+                    const code = document.getElementById('previewPhpCode').textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        const originalHtml = copyDtoBtn.innerHTML;
+                        copyDtoBtn.innerHTML = '<i class="bi bi-check me-1"></i> Copied!';
+                        copyDtoBtn.classList.remove('btn-outline-secondary');
+                        copyDtoBtn.classList.add('btn-success');
+                        setTimeout(() => {
+                            copyDtoBtn.innerHTML = originalHtml;
+                            copyDtoBtn.classList.remove('btn-success');
+                            copyDtoBtn.classList.add('btn-outline-secondary');
+                        }, 2000);
+                    });
+                });
+            }
+
+            // Initialize on both DOMContentLoaded and turbo:load for Turbo Drive compatibility
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initDtoPreview);
+            } else {
+                initDtoPreview();
+            }
+            document.addEventListener('turbo:load', initDtoPreview);
+        })();
+        {% endif %}
+    </script>
+{% endblock %}

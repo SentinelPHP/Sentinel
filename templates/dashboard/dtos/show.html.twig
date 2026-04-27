@@ -1,0 +1,198 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}DTO: {{ dto.className }}{% endblock %}
+{% block header_title %}DTO Details{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_dtos') }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to DTOs
+    </a>
+    <a href="{{ path('dashboard_dtos_diff', {id: dto.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-file-diff me-1"></i> Version Diff
+    </a>
+    <a href="{{ path('dashboard_dtos_download', {id: dto.id}) }}" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-download me-1"></i> Download PHP
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>DTO Information
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Class Name</dt>
+                        <dd class="col-sm-8">
+                            <code>{{ dto.className }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Namespace</dt>
+                        <dd class="col-sm-8">
+                            <code class="small">{{ dto.namespace }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">FQCN</dt>
+                        <dd class="col-sm-8">
+                            <code class="small text-break">{{ dto.fullyQualifiedClassName }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Version</dt>
+                        <dd class="col-sm-8">
+                            <form method="get" action="{{ path('dashboard_dtos_show', {id: dto.id}) }}" class="d-inline">
+                                <select name="version" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                                    {% for version in allVersions %}
+                                        <option value="{{ version.version }}" {{ version.version == dto.version ? 'selected' : '' }}>
+                                            v{{ version.version }}{% if version.isCurrent %} (Current){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            {% if dto.isCurrent %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Current
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Historical</span>
+                            {% endif %}
+                            {% if dto.status.value == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elseif dto.status.value == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% elseif dto.status.value == 'in_progress' %}
+                                <span class="badge bg-info">In Progress</span>
+                            {% elseif dto.status.value == 'failed' %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Checksum</dt>
+                        <dd class="col-sm-8">
+                            <code class="small text-muted">{{ dto.checksum[:16] }}...</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Generated</dt>
+                        <dd class="col-sm-8">
+                            <small>{{ dto.createdAt|date('Y-m-d H:i:s') }}</small>
+                        </dd>
+                    </dl>
+                </div>
+                {% if canRegenerate %}
+                    <div class="card-footer">
+                        <form method="post" action="{{ path('dashboard_dtos_regenerate', {id: dto.id}) }}" 
+                              onsubmit="return confirm('Are you sure you want to regenerate this DTO? A new version will be created.');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('regenerate_dto_' ~ dto.id) }}">
+                            <button type="submit" class="btn btn-warning btn-sm w-100">
+                                <i class="bi bi-arrow-repeat me-1"></i> Regenerate DTO
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-link-45deg me-2"></i>Source Schema
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Endpoint</dt>
+                        <dd class="col-sm-8">
+                            {% set methodColors = {
+                                'GET': 'success',
+                                'POST': 'primary',
+                                'PUT': 'warning',
+                                'PATCH': 'info',
+                                'DELETE': 'danger'
+                            } %}
+                            <span class="badge bg-{{ methodColors[dto.schema.httpMethod] ?? 'secondary' }}">
+                                {{ dto.schema.httpMethod }}
+                            </span>
+                            <code>{{ dto.schema.endpointPath }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Host</dt>
+                        <dd class="col-sm-8">
+                            <code>{{ dto.schema.targetHost }}</code>
+                        </dd>
+
+                        <dt class="col-sm-4">Type</dt>
+                        <dd class="col-sm-8">
+                            {% if dto.schema.schemaType.value == 'request' %}
+                                <span class="badge bg-info">Request</span>
+                            {% else %}
+                                <span class="badge bg-success">Response</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Token</dt>
+                        <dd class="col-sm-8">
+                            <a href="{{ path('dashboard_tokens_show', {id: dto.schema.token.id}) }}">
+                                {{ dto.schema.token.name }}
+                            </a>
+                        </dd>
+                    </dl>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('dashboard_schemas_show', {id: dto.schema.id}) }}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-eye me-1"></i> View Schema
+                    </a>
+                </div>
+            </div>
+
+            {% if dto.errorMessage %}
+                <div class="card mb-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Generation Error
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0 text-danger small">{{ dto.errorMessage }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-file-earmark-code me-2"></i>PHP Code
+                    </span>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="copyCode()">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <pre class="mb-0 p-3 bg-dark text-light" style="max-height: 70vh; overflow: auto;"><code id="php-code" class="language-php">{{ dto.phpCode }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        function copyCode() {
+            const codeText = document.getElementById('php-code').textContent;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const btn = event.target.closest('button');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check me-1"></i> Copied!';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            });
+        }
+    </script>
+{% endblock %}

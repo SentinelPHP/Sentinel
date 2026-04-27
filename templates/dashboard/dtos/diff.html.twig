@@ -1,0 +1,210 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}DTO Diff: {{ dto.className }}{% endblock %}
+{% block header_title %}DTO Version Comparison{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_dtos_show', {id: dto.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to DTO
+    </a>
+    <a href="{{ path('dashboard_dtos') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-list me-1"></i> All DTOs
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-sliders me-2"></i>Compare Versions
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_dtos_diff', {id: dto.id}) }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="compare_from" class="form-label">From Version</label>
+                    <select name="compare_from" id="compare_from" class="form-select">
+                        <option value="">Select version...</option>
+                        {% for version in allVersions %}
+                            <option value="{{ version.version }}" {{ compareFrom == version.version ? 'selected' : '' }}>
+                                v{{ version.version }}{% if version.isCurrent %} (Current){% endif %} - {{ version.createdAt|date('Y-m-d H:i') }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="compare_to" class="form-label">To Version</label>
+                    <select name="compare_to" id="compare_to" class="form-select">
+                        <option value="">Select version...</option>
+                        {% for version in allVersions %}
+                            <option value="{{ version.version }}" {{ compareTo == version.version ? 'selected' : '' }}>
+                                v{{ version.version }}{% if version.isCurrent %} (Current){% endif %} - {{ version.createdAt|date('Y-m-d H:i') }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-file-diff me-1"></i> Compare
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if fromDto and toDto %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-file-diff me-2"></i>
+                    Comparing v{{ fromDto.version }} → v{{ toDto.version }}
+                </span>
+                <span class="text-muted small">
+                    {{ fromDto.className }}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="row g-0" data-controller="diff-viewer">
+                    <div class="col-md-6 border-end">
+                        <div class="diff-header bg-danger bg-opacity-10 p-2 border-bottom">
+                            <strong class="text-danger">
+                                <i class="bi bi-dash-circle me-1"></i>
+                                v{{ fromDto.version }}
+                            </strong>
+                            <small class="text-muted ms-2">{{ fromDto.createdAt|date('Y-m-d H:i:s') }}</small>
+                        </div>
+                        <pre class="mb-0 p-3 bg-dark text-light" style="max-height: 60vh; overflow: auto; font-size: 0.85rem;"><code class="language-php">{{ fromDto.phpCode }}</code></pre>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="diff-header bg-success bg-opacity-10 p-2 border-bottom">
+                            <strong class="text-success">
+                                <i class="bi bi-plus-circle me-1"></i>
+                                v{{ toDto.version }}
+                            </strong>
+                            <small class="text-muted ms-2">{{ toDto.createdAt|date('Y-m-d H:i:s') }}</small>
+                            {% if toDto.isCurrent %}
+                                <span class="badge bg-success ms-2">Current</span>
+                            {% endif %}
+                        </div>
+                        <pre class="mb-0 p-3 bg-dark text-light" style="max-height: 60vh; overflow: auto; font-size: 0.85rem;"><code class="language-php">{{ toDto.phpCode }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>Version Details
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-danger">Version {{ fromDto.version }}</h6>
+                        <dl class="row small">
+                            <dt class="col-sm-4">Checksum</dt>
+                            <dd class="col-sm-8"><code>{{ fromDto.checksum[:24] }}...</code></dd>
+                            <dt class="col-sm-4">Generated</dt>
+                            <dd class="col-sm-8">{{ fromDto.createdAt|date('Y-m-d H:i:s') }}</dd>
+                            <dt class="col-sm-4">Lines</dt>
+                            <dd class="col-sm-8">{{ fromDto.phpCode|split("\n")|length }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">Version {{ toDto.version }}</h6>
+                        <dl class="row small">
+                            <dt class="col-sm-4">Checksum</dt>
+                            <dd class="col-sm-8"><code>{{ toDto.checksum[:24] }}...</code></dd>
+                            <dt class="col-sm-4">Generated</dt>
+                            <dd class="col-sm-8">{{ toDto.createdAt|date('Y-m-d H:i:s') }}</dd>
+                            <dt class="col-sm-4">Lines</dt>
+                            <dd class="col-sm-8">{{ toDto.phpCode|split("\n")|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                {% if fromDto.checksum == toDto.checksum %}
+                    <div class="alert alert-info mb-0 mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        These versions have identical checksums - the generated code is the same.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% elseif compareFrom > 0 or compareTo > 0 %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Please select two different versions to compare.
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-file-diff fs-1 text-muted d-block mb-3"></i>
+                <h5 class="text-muted">Select Versions to Compare</h5>
+                <p class="text-muted mb-0">
+                    Choose a "From" and "To" version above to see the differences between DTO generations.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <i class="bi bi-clock-history me-2"></i>All Versions
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Checksum</th>
+                            <th>Lines</th>
+                            <th>Generated</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in allVersions %}
+                            <tr class="{{ version.isCurrent ? 'table-success' : '' }}">
+                                <td>
+                                    <span class="badge bg-light text-dark">v{{ version.version }}</span>
+                                    {% if version.isCurrent %}
+                                        <span class="badge bg-success">Current</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if version.status.value == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elseif version.status.value == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ version.status.value|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code class="small text-muted">{{ version.checksum[:16] }}...</code>
+                                </td>
+                                <td>
+                                    {{ version.phpCode|split("\n")|length }}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ version.createdAt|date('Y-m-d H:i:s') }}</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ path('dashboard_dtos_show', {id: version.id}) }}" 
+                                           class="btn btn-outline-primary" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ path('dashboard_dtos_download', {id: version.id}) }}" 
+                                           class="btn btn-outline-info" title="Download">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,44 @@
+services:
+    # Guzzle mock handler for testing HTTP requests
+    GuzzleHttp\Handler\MockHandler:
+        class: GuzzleHttp\Handler\MockHandler
+        arguments:
+            - []  # Empty queue, tests will populate it
+
+    GuzzleHttp\HandlerStack:
+        factory: ['GuzzleHttp\HandlerStack', 'create']
+        arguments:
+            - '@GuzzleHttp\Handler\MockHandler'
+
+    GuzzleHttp\Client:
+        arguments:
+            - { handler: '@GuzzleHttp\HandlerStack' }
+
+    # Use Guzzle HTTP client in tests instead of Swoole
+    App\Http\HttpClientInterface:
+        class: App\Http\GuzzleHttpClientAdapter
+        arguments:
+            $client: '@GuzzleHttp\Client'
+            $timeout: '%proxy.timeout%'
+            $connectTimeout: '%proxy.connect_timeout%'
+
+    # Use simple Redis client in tests instead of pooled Swoole client
+    App\Redis\RedisClientInterface:
+        class: App\Redis\RedisClient
+        arguments:
+            $redisUrl: '%env(REDIS_URL)%'
+
+    # Make services public for integration tests
+    App\Service\HealthCheckServiceInterface:
+        class: App\Service\HealthCheckService
+        public: true
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+            $cache: '@cache.app'
+            $httpClient: '@App\Http\HttpClientInterface'
+            $healthCheckUrl: '%health.check_url%'
+
+    # Make mock handler public so tests can add responses
+    test.guzzle.mock_handler:
+        alias: GuzzleHttp\Handler\MockHandler
+        public: true

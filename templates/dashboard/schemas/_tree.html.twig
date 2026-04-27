@@ -1,0 +1,48 @@
+{# Recursive template for rendering JSON Schema as a collapsible tree #}
+{% set maxDepth = 10 %}
+
+{% if depth < maxDepth %}
+    {% if node is iterable %}
+        <ul class="list-unstyled mb-0 {{ depth > 0 ? 'ms-3 border-start ps-2' : '' }}">
+            {% for key, value in node %}
+                <li class="py-1">
+                    {% if value is iterable and value is not empty %}
+                        <span class="tree-toggle cursor-pointer" data-action="click->schema-tree#toggle">
+                            <i class="bi bi-chevron-right tree-icon me-1"></i>
+                            <strong class="text-primary">{{ key }}</strong>
+                            {% if value.type is defined %}
+                                <span class="badge bg-secondary ms-1">{{ value.type is iterable ? value.type|join('|') : value.type }}</span>
+                            {% elseif key == 'properties' %}
+                                <span class="badge bg-info ms-1">object</span>
+                            {% elseif key == 'items' %}
+                                <span class="badge bg-warning ms-1">array</span>
+                            {% endif %}
+                        </span>
+                        <div class="tree-content d-none">
+                            {{ include('dashboard/schemas/_tree.html.twig', {node: value, path: path ~ '.' ~ (key is iterable ? '[array]' : key), depth: depth + 1}) }}
+                        </div>
+                    {% else %}
+                        <span class="ms-3">
+                            <strong class="text-secondary">{{ key }}:</strong>
+                            {% if value is same as(true) %}
+                                <span class="text-success">true</span>
+                            {% elseif value is same as(false) %}
+                                <span class="text-danger">false</span>
+                            {% elseif value is null %}
+                                <span class="text-muted fst-italic">null</span>
+                            {% elseif value is iterable and value is empty %}
+                                <span class="text-muted">[]</span>
+                            {% else %}
+                                <span class="text-info">"{{ value }}"</span>
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <span class="text-info">"{{ node }}"</span>
+    {% endif %}
+{% else %}
+    <span class="text-muted fst-italic">... (max depth reached)</span>
+{% endif %}

@@ -1,0 +1,51 @@
+<div 
+    {{ attributes }}
+    {% if this.isInProgress %}
+        data-poll="delay(3000)|$render"
+    {% endif %}
+>
+    {% set dto = this.dto %}
+    
+    {% if dto %}
+        <div class="dto-status d-inline-flex align-items-center">
+            <span class="badge {{ this.statusBadgeClass }}">
+                <i class="bi {{ this.statusIcon }} me-1"></i>
+                {{ this.statusLabel }}
+            </span>
+            
+            {% if dto.isCurrent and this.status == 'completed' %}
+                <a href="{{ path('dashboard_dtos_show', {id: dto.id}) }}" 
+                   class="btn btn-sm btn-outline-primary ms-2" 
+                   title="View DTO">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ path('dashboard_dtos_download', {id: dto.id}) }}" 
+                   class="btn btn-sm btn-outline-info ms-1" 
+                   title="Download PHP">
+                    <i class="bi bi-download"></i>
+                </a>
+            {% endif %}
+            
+            {% if this.status == 'failed' and dto.errorMessage %}
+                <button type="button" 
+                        class="btn btn-sm btn-outline-danger ms-2" 
+                        data-bs-toggle="tooltip" 
+                        data-bs-placement="top" 
+                        title="{{ dto.errorMessage }}">
+                    <i class="bi bi-info-circle"></i>
+                </button>
+            {% endif %}
+            
+            {% if this.isInProgress %}
+                <span class="spinner-border spinner-border-sm ms-2 text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </span>
+            {% endif %}
+        </div>
+    {% else %}
+        <span class="badge bg-secondary">
+            <i class="bi bi-question-circle me-1"></i>
+            No DTO
+        </span>
+    {% endif %}
+</div>

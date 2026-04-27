@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Development
+.ddev
+.docker/observability
+.windsurf
+.env.*
+!.env.example
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Dependencies (rebuilt in container)
+vendor
+node_modules
+
+# Cache and logs
+var/cache
+var/log
+var/tmp
+
+# Tests
+tests
+phpunit.xml.dist
+phpstan.dist.neon
+.phpunit.result.cache
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Build artifacts
+public/build
+public/bundles
+
+# OS files
+.DS_Store
+Thumbs.db

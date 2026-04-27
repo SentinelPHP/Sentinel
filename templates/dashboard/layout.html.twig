@@ -1,0 +1,148 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{% block page_title %}Dashboard{% endblock %} | {{ app_name }}{% endblock %}
+
+{% block body %}
+    {# Mobile sidebar overlay #}
+    <div class="sidebar-overlay" data-controller="sidebar" data-action="click->sidebar#close"></div>
+
+    {# Sidebar Navigation #}
+    <aside class="sidebar" id="sidebar" data-controller="sidebar" role="navigation" aria-label="Main navigation">
+        <div class="sidebar-brand">
+            <i class="bi bi-shield-check"></i>
+            <span class="sidebar-brand-text">{{ app_name }}</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="sidebar-section">Main</div>
+            <a href="{{ path('dashboard_index') }}" class="nav-link {{ app.request.attributes.get('_route') == 'dashboard_index' ? 'active' : '' }}" {% if app.request.attributes.get('_route') == 'dashboard_index' %}aria-current="page"{% endif %}>
+                <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                <span class="nav-link-text">Dashboard</span>
+            </a>
+            <a href="{{ path('dashboard_services') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_services' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_services' %}aria-current="page"{% endif %}>
+                <i class="bi bi-heart-pulse" aria-hidden="true"></i>
+                <span class="nav-link-text">Service Health</span>
+            </a>
+
+            <div class="sidebar-section">Monitoring</div>
+            <a href="{{ path('dashboard_drifts') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_drift' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_drift' %}aria-current="page"{% endif %}>
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                <span class="nav-link-text">Drift Inspector</span>
+            </a>
+            <a href="{{ path('dashboard_logs') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_log' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_log' %}aria-current="page"{% endif %}>
+                <i class="bi bi-journal-text" aria-hidden="true"></i>
+                <span class="nav-link-text">Request Logs</span>
+            </a>
+
+            <div class="sidebar-section">Configuration</div>
+            <a href="{{ path('dashboard_tokens') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_token' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_token' %}aria-current="page"{% endif %}>
+                <i class="bi bi-key" aria-hidden="true"></i>
+                <span class="nav-link-text">API Tokens</span>
+            </a>
+            <a href="{{ path('dashboard_schemas') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_schema' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_schema' %}aria-current="page"{% endif %}>
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                <span class="nav-link-text">Schemas</span>
+            </a>
+            <a href="{{ path('dashboard_dtos') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_dto' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_dto' %}aria-current="page"{% endif %}>
+                <i class="bi bi-file-earmark-code" aria-hidden="true"></i>
+                <span class="nav-link-text">Generated DTOs</span>
+            </a>
+            <a href="{{ path('dashboard_alerts') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_alert' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_alert' %}aria-current="page"{% endif %}>
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span class="nav-link-text">Alerts</span>
+            </a>
+
+            {% if is_granted('ROLE_ADMIN') is same as true %}
+            <div class="sidebar-section">Admin</div>
+            <a href="{{ path('dashboard_users') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_user' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_user' %}aria-current="page"{% endif %}>
+                <i class="bi bi-people" aria-hidden="true"></i>
+                <span class="nav-link-text">Users</span>
+            </a>
+            {% endif %}
+
+            <div class="sidebar-section">Account</div>
+            <a href="{{ path('dashboard_settings') }}" class="nav-link {{ app.request.attributes.get('_route') starts with 'dashboard_settings' ? 'active' : '' }}" {% if app.request.attributes.get('_route') starts with 'dashboard_settings' %}aria-current="page"{% endif %}>
+                <i class="bi bi-gear" aria-hidden="true"></i>
+                <span class="nav-link-text">Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer mt-auto p-3 border-top border-secondary">
+            <button class="btn btn-sm btn-outline-light w-100" data-action="sidebar#toggle" aria-label="Toggle sidebar">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                <span class="nav-link-text">Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    {# Swipe indicator for mobile #}
+    <div class="sidebar-swipe-indicator" aria-hidden="true"></div>
+
+    {# Main Content Area #}
+    <main class="main-content" id="main-content" role="main" tabindex="-1">
+        {# Header #}
+        <header class="main-header">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-link d-lg-none me-2 p-0" data-action="sidebar#show" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidebar">
+                    <i class="bi bi-list fs-4" aria-hidden="true"></i>
+                </button>
+                <h1 class="header-title">{% block header_title %}Dashboard{% endblock %}</h1>
+            </div>
+
+            <div class="header-actions">
+                {% block header_actions %}{% endblock %}
+
+                {# Connection status indicator #}
+                <div class="d-none d-md-flex align-items-center me-3" data-controller="connection-status">
+                    <span class="status-indicator status-green me-2" data-connection-status-target="indicator"></span>
+                    <small class="text-muted" data-connection-status-target="text">Connected</small>
+                </div>
+
+                {# User dropdown #}
+                <div class="dropdown">
+                    <button class="btn btn-link dropdown-toggle text-decoration-none" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span class="d-none d-md-inline">{{ app.user ? app.user.userIdentifier : 'Guest' }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ path('dashboard_settings') }}"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                        {% if app.user %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ path('app_logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        {# Page Content #}
+        <div class="page-content">
+            {# Flash Messages #}
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {# Toast Container for Real-time Notifications #}
+    <div class="toast-container" data-controller="toast-container" aria-live="polite" aria-atomic="true">
+        {# Toasts will be dynamically added here #}
+    </div>
+
+    {# Mercure Real-time Subscription #}
+    <div data-controller="mercure-subscription"
+         data-mercure-subscription-hub-url-value="{{ mercure_public_url() }}"
+         data-mercure-subscription-topics-value="{{ mercure_topics()|json_encode }}"
+         data-mercure-subscription-polling-interval-value="{{ user_refresh_interval() }}"
+         data-mercure-subscription-polling-endpoint-value="{{ path('api_dashboard_events_recent') }}"
+         data-mercure-subscription-notification-events-value="{{ user_notification_events()|json_encode }}"
+         style="display: none;">
+    </div>
+{% endblock %}

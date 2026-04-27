@@ -1,0 +1,247 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}{{ service.host }}{% endblock %}
+{% block header_title %}Service Details{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('dashboard_services') }}">Service Health</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ service.host }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <span class="status-indicator status-{{ service.status }} me-3" style="width: 20px; height: 20px;"></span>
+            <h2 class="mb-0">{{ service.host }}</h2>
+            <span class="badge ms-3 bg-{{ service.status == 'green' ? 'success' : (service.status == 'yellow' ? 'warning text-dark' : 'danger') }}">
+                {{ service.status == 'green' ? 'Healthy' : (service.status == 'yellow' ? 'Degraded' : 'Unhealthy') }}
+            </span>
+        </div>
+        <a href="{{ path('dashboard_services_latency', {host: service.host}) }}" class="btn btn-outline-primary">
+            <i class="bi bi-speedometer2 me-1"></i>
+            Latency Benchmarking
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">Avg Latency</div>
+                    <div class="card-stat-value">{{ service.avgLatencyMs }}ms</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">P95 Latency</div>
+                    <div class="card-stat-value">{{ service.p95LatencyMs }}ms</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">Error Rate</div>
+                    <div class="card-stat-value">{{ service.errorRate|number_format(2) }}%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">Requests (1h)</div>
+                    <div class="card-stat-value">{{ service.requestCount|number_format }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Health History (24h)</h5>
+                </div>
+                <div class="card-body">
+                    {% if history|length > 0 %}
+                        <div class="health-timeline d-flex flex-wrap gap-1">
+                            {% for entry in history %}
+                                <div 
+                                    class="health-block bg-{{ entry.status == 'green' ? 'success' : (entry.status == 'yellow' ? 'warning' : 'danger') }}"
+                                    title="{{ entry.hour }}: {{ entry.avgLatencyMs }}ms avg, {{ entry.errorRate|number_format(2) }}% errors, {{ entry.requestCount }} requests"
+                                    data-bs-toggle="tooltip"
+                                    style="width: 24px; height: 32px; border-radius: 4px;"
+                                ></div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 text-muted small">
+                            <span>24 hours ago</span>
+                            <span>Now</span>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-clock-history fs-1 mb-2 d-block"></i>
+                            No history data available
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latency Percentiles</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">P50</span>
+                            <span class="fw-semibold">{{ service.p50LatencyMs }}ms</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ min(service.p50LatencyMs / 10, 100) }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">P95</span>
+                            <span class="fw-semibold">{{ service.p95LatencyMs }}ms</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: {{ min(service.p95LatencyMs / 10, 100) }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">P99</span>
+                            <span class="fw-semibold">{{ service.p99LatencyMs }}ms</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" style="width: {{ min(service.p99LatencyMs / 10, 100) }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Drift Summary (24h)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-around text-center">
+                        <div>
+                            <div class="fs-3 fw-bold text-danger">{{ service.criticalDrifts }}</div>
+                            <div class="text-muted small">Critical</div>
+                        </div>
+                        <div>
+                            <div class="fs-3 fw-bold text-warning">{{ service.warningDrifts }}</div>
+                            <div class="text-muted small">Warning</div>
+                        </div>
+                        <div>
+                            <div class="fs-3 fw-bold text-info">{{ service.infoDrifts }}</div>
+                            <div class="text-muted small">Info</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Drifts</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if service.recentDrifts|length > 0 %}
+                        <ul class="list-group list-group-flush">
+                            {% for drift in service.recentDrifts %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% if drift.severity == 'critical' %}
+                                            <span class="badge bg-danger me-2">Critical</span>
+                                        {% elseif drift.severity == 'warning' %}
+                                            <span class="badge bg-warning text-dark me-2">Warning</span>
+                                        {% else %}
+                                            <span class="badge bg-info text-dark me-2">Info</span>
+                                        {% endif %}
+                                        <code>{{ drift.path }}</code>
+                                    </div>
+                                    <small class="text-muted" title="{{ drift.createdAt|date('Y-m-d H:i:s') }}">
+                                        {{ drift.createdAt|date('H:i') }}
+                                    </small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-check-circle fs-1 mb-2 d-block"></i>
+                            No drifts detected for this service
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Recent Requests</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if service.recentRequests|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Status</th>
+                                <th>Latency</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in service.recentRequests %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ request.method }}</span>
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 300px;" title="{{ request.path }}">
+                                        <code>{{ request.path }}</code>
+                                    </td>
+                                    <td>
+                                        {% if request.statusCode >= 500 %}
+                                            <span class="badge bg-danger">{{ request.statusCode }}</span>
+                                        {% elseif request.statusCode >= 400 %}
+                                            <span class="badge bg-warning text-dark">{{ request.statusCode }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ request.statusCode }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ request.latencyMs }}ms</td>
+                                    <td>
+                                        <small class="text-muted" title="{{ request.createdAt|date('Y-m-d H:i:s') }}">
+                                            {{ request.createdAt|date('H:i:s') }}
+                                        </small>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-journal-text fs-1 mb-2 d-block"></i>
+                    No recent requests for this service
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

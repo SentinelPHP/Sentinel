@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+    name: PHPStan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql, redis, sodium
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --ignore-platform-req=ext-swoole
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse
+
+  phpunit:
+    runs-on: ubuntu-latest
+    name: PHPUnit
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel
+          POSTGRES_DB: sentinel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sentinel"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql, redis, sodium
+          coverage: xdebug
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --ignore-platform-req=ext-swoole
+
+      - name: Create test database schema
+        env:
+          DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
+        run: |
+          php bin/console doctrine:database:create --env=test --if-not-exists
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Run PHPUnit (Unit, Integration, Functional)
+        env:
+          DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
+          REDIS_URL: redis://localhost:6379
+          APP_SECRET: test-secret-for-ci
+        run: vendor/bin/phpunit --testsuite=Unit,Integration,Functional --coverage-text
+
+  panther:
+    runs-on: ubuntu-latest
+    name: Panther E2E
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel
+          POSTGRES_DB: sentinel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sentinel"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql, redis, sodium
+          tools: symfony-cli
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-progress --ignore-platform-req=ext-swoole
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Install ChromeDriver
+        run: vendor/bin/bdi detect drivers
+
+      - name: Create test database schema
+        env:
+          DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
+        run: |
+          php bin/console doctrine:database:create --env=test --if-not-exists
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Create Panther test users
+        env:
+          DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
+        run: |
+          php bin/console sentinel:user:create panther-admin@example.com --password=password --admin --env=test || true
+          php bin/console sentinel:user:create panther-test@example.com --password=password --env=test || true
+
+      - name: Create .env.test.local for Panther
+        run: |
+          echo 'DATABASE_URL="postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16"' > .env.test.local
+          echo 'REDIS_URL="redis://localhost:6379"' >> .env.test.local
+
+      - name: Run Browser tests
+        env:
+          DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
+          REDIS_URL: redis://localhost:6379
+          APP_SECRET: test-secret-for-ci
+          PANTHER_NO_HEADLESS: 0
+          PANTHER_CHROME_ARGUMENTS: '--disable-gpu --no-sandbox --disable-dev-shm-usage'
+        run: vendor/bin/phpunit --testsuite=Browser
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: panther-screenshots
+          path: var/error-screenshots/
+          retention-days: 7
+          if-no-files-found: ignore

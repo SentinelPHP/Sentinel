@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run Symfony console commands
+## Usage: console [command] [options]
+## Example: ddev console cache:clear
+## Example: ddev console doctrine:migrations:migrate
+
+ddev exec php bin/console "$@"

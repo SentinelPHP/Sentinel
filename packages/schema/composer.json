@@ -1,0 +1,40 @@
+{
+    "name": "sentinelphp/schema",
+    "description": "JSON Schema generation, merging, and validation library",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["json-schema", "schema", "validation", "api"],
+    "homepage": "https://github.com/SentinelPHP/schema",
+    "authors": [
+        {
+            "name": "SentinelPHP Contributors"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/SentinelPHP/schema/issues",
+        "source": "https://github.com/SentinelPHP/schema"
+    },
+    "require": {
+        "php": ">=8.2",
+        "opis/json-schema": "^2.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^12.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SentinelPHP\\Schema\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SentinelPHP\\Schema\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}

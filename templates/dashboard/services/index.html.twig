@@ -1,0 +1,8 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Service Health{% endblock %}
+{% block header_title %}Service Health{% endblock %}
+
+{% block content %}
+    {{ component('ServiceHealthGrid') }}
+{% endblock %}

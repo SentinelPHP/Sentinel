@@ -1,0 +1,373 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}{{ token.name }}{% endblock %}
+{% block header_title %}Token: {{ token.name }}{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_tokens_activity', {id: token.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-activity me-1"></i> Activity Log
+    </a>
+    <a href="{{ path('dashboard_tokens') }}" class="btn btn-outline-secondary btn-sm me-3">
+        <i class="bi bi-arrow-left me-1"></i> Back to Tokens
+    </a>
+{% endblock %}
+
+{% block content %}
+    {% if createdToken %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Token Created Successfully!
+            </h5>
+            <p class="mb-2">
+                <strong>Important:</strong> Copy your API token now. You won't be able to see it again!
+            </p>
+            <div class="input-group mb-2">
+                <input type="text" class="form-control font-monospace bg-white" value="{{ createdToken }}" readonly id="tokenValue">
+                <button class="btn btn-outline-secondary" type="button" onclick="copyToken()" id="copyBtn">
+                    <i class="bi bi-clipboard"></i> Copy
+                </button>
+            </div>
+            <hr>
+            <p class="mb-0 small">
+                Use this token in the <code>Authorization</code> header: <code>Bearer {{ createdToken[:20] }}...</code>
+            </p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <script>
+            function copyToken() {
+                const tokenInput = document.getElementById('tokenValue');
+                tokenInput.select();
+                document.execCommand('copy');
+                const btn = document.getElementById('copyBtn');
+                btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                }, 2000);
+            }
+        </script>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            {% if canEdit %}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-pencil me-2"></i>Edit Token</span>
+                        <span class="badge {{ token.isActive ? 'bg-success' : 'bg-danger' }}">
+                            {{ token.isActive ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        {{ form_start(form, {attr: {class: 'needs-validation', novalidate: 'novalidate'}}) }}
+                            
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">Basic Information</h6>
+                                {{ form_row(form.name) }}
+                                {{ form_row(form.allowedTargets) }}
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">Operation Mode</h6>
+                                {{ form_row(form.mode) }}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form_row(form.learningThreshold) }}
+                                    </div>
+                                    <div class="col-md-6 d-flex align-items-end">
+                                        <div class="mb-3">
+                                            {{ form_row(form.autoSwitchToValidating) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form_row(form.validateRequestBody) }}
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">Data Protection & Logging</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form_row(form.dataProtectionStrategy) }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form_row(form.logLevel) }}
+                                    </div>
+                                </div>
+                                {{ form_row(form.customRedactionPatterns) }}
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">Alerting</h6>
+                                {{ form_row(form.alertMinSeverity) }}
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">Status</h6>
+                                {{ form_row(form.isActive) }}
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="bi bi-trash me-1"></i> Delete Token
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i> Save Changes
+                                </button>
+                            </div>
+
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            {% else %}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-info-circle me-2"></i>Token Details</span>
+                        <span class="badge {{ token.isActive ? 'bg-success' : 'bg-danger' }}">
+                            {{ token.isActive ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Name</dt>
+                            <dd class="col-sm-8">{{ token.name }}</dd>
+
+                            <dt class="col-sm-4">Mode</dt>
+                            <dd class="col-sm-8">
+                                {% if token.mode.value == 'learning' %}
+                                    <span class="badge bg-info">Learning</span>
+                                {% elseif token.mode.value == 'validating' %}
+                                    <span class="badge bg-success">Validating</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Passive</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Allowed Targets</dt>
+                            <dd class="col-sm-8">
+                                {% if token.allowedTargets|length == 0 %}
+                                    <span class="text-muted">All hosts allowed</span>
+                                {% else %}
+                                    {% for target in token.allowedTargets %}
+                                        <code class="me-1">{{ target }}</code>
+                                    {% endfor %}
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Data Protection</dt>
+                            <dd class="col-sm-8">{{ token.dataProtectionStrategy ? token.dataProtectionStrategy.value : 'Global default' }}</dd>
+
+                            <dt class="col-sm-4">Log Level</dt>
+                            <dd class="col-sm-8">{{ token.logLevel ? token.logLevel.value : 'Global default' }}</dd>
+
+                            <dt class="col-sm-4">Created</dt>
+                            <dd class="col-sm-8">{{ token.createdAt|date('F j, Y \\a\\t H:i') }}</dd>
+
+                            <dt class="col-sm-4">Last Updated</dt>
+                            <dd class="col-sm-8">{{ token.updatedAt|date('F j, Y \\a\\t H:i') }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-clock-history me-2"></i>Recent Requests
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Path</th>
+                                    <th>Status</th>
+                                    <th>Latency</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in recentRequests %}
+                                    <tr>
+                                        <td><span class="badge bg-dark">{{ request.method }}</span></td>
+                                        <td><code class="small">{{ request.path|length > 40 ? request.path[:40] ~ '...' : request.path }}</code></td>
+                                        <td>
+                                            {% if request.statusCode >= 500 %}
+                                                <span class="badge bg-danger">{{ request.statusCode }}</span>
+                                            {% elseif request.statusCode >= 400 %}
+                                                <span class="badge bg-warning text-dark">{{ request.statusCode }}</span>
+                                            {% else %}
+                                                <span class="badge bg-success">{{ request.statusCode }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><small>{{ request.latencyMs }}ms</small></td>
+                                        <td><small class="text-muted">{{ request.createdAt|date('H:i:s') }}</small></td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">No requests yet</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if recentRequests|length > 0 %}
+                    <div class="card-footer text-center">
+                        <a href="{{ path('dashboard_tokens_activity', {id: token.id}) }}" class="btn btn-sm btn-outline-primary">
+                            View All Activity <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Recent Drifts
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Severity</th>
+                                    <th>Type</th>
+                                    <th>Path</th>
+                                    <th>Endpoint</th>
+                                    <th>Time</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for drift in recentDrifts %}
+                                    <tr>
+                                        <td>
+                                            {% if drift.severity.value == 'critical' %}
+                                                <span class="badge bg-danger">Critical</span>
+                                            {% elseif drift.severity.value == 'warning' %}
+                                                <span class="badge bg-warning text-dark">Warning</span>
+                                            {% else %}
+                                                <span class="badge bg-info">Info</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ drift.driftType.value|replace({'_': ' '}) }}</span></td>
+                                        <td><code class="small">{{ drift.path|length > 30 ? drift.path[:30] ~ '...' : drift.path }}</code></td>
+                                        <td>
+                                            <small>
+                                                <span class="badge bg-dark">{{ drift.schema.httpMethod }}</span>
+                                                {{ drift.schema.endpointPath|length > 20 ? drift.schema.endpointPath[:20] ~ '...' : drift.schema.endpointPath }}
+                                            </small>
+                                        </td>
+                                        <td><small class="text-muted">{{ drift.createdAt|date('M j, H:i') }}</small></td>
+                                        <td>
+                                            <a href="{{ path('dashboard_drifts_show', {id: drift.id}) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            <i class="bi bi-check-circle me-1"></i> No drifts detected
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-bar-chart me-2"></i>Statistics
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <h3 class="mb-0">{{ stats.requestCount|number_format }}</h3>
+                            <small class="text-muted">Total Requests</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h3 class="mb-0 {{ stats.driftCount > 0 ? 'text-warning' : '' }}">{{ stats.driftCount|number_format }}</h3>
+                            <small class="text-muted">Total Drifts</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <dl class="row mb-0 small">
+                        <dt class="col-6">Last Activity</dt>
+                        <dd class="col-6 text-end">
+                            {% if stats.lastActivity %}
+                                {{ stats.lastActivity|date('M j, H:i') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-6">Created</dt>
+                        <dd class="col-6 text-end">{{ token.createdAt|date('M j, Y') }}</dd>
+                        <dt class="col-6">Token ID</dt>
+                        <dd class="col-6 text-end">
+                            <code class="small" title="{{ token.id }}">{{ token.id|slice(0, 8) }}...</code>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card bg-light">
+                <div class="card-header">
+                    <i class="bi bi-code-slash me-2"></i>Usage Example
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Make requests through the proxy:</p>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0"><code>curl -X GET \
+  'https://sentinel.example.com/proxy/api.example.com/v1/users' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if canEdit %}
+        <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>Delete Token
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete the token <strong>{{ token.name }}</strong>?</p>
+                        <p class="text-danger mb-0">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            This action cannot be undone. All associated schemas and drifts will be orphaned.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <form method="post" action="{{ path('dashboard_tokens_delete', {id: token.id}) }}" class="d-inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete_token_' ~ token.id) }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-1"></i> Delete Token
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

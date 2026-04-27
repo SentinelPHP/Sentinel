@@ -1,0 +1,39 @@
+{
+    "name": "sentinelphp/dto",
+    "description": "PHP DTO generation from JSON Schemas",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["dto", "code-generation", "json-schema", "php"],
+    "homepage": "https://github.com/SentinelPHP/dto",
+    "authors": [
+        {
+            "name": "SentinelPHP Contributors"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/SentinelPHP/dto/issues",
+        "source": "https://github.com/SentinelPHP/dto"
+    },
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^12.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SentinelPHP\\Dto\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SentinelPHP\\Dto\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}

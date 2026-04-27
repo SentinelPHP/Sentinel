@@ -1,0 +1,81 @@
+name: Split Packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - dir: redact
+            repo: Redact
+          - dir: encrypt
+            repo: Encrypt
+          - dir: schema
+            repo: Schema
+          - dir: drift
+            repo: Drift
+          - dir: dto
+            repo: Dto
+          - dir: core
+            repo: Core
+
+    name: Split ${{ matrix.repo }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Split package
+        uses: symplify/monorepo-split-github-action@v2.3.0
+        with:
+          package_directory: 'packages/${{ matrix.dir }}'
+          repository_organization: 'SentinelPHP'
+          repository_name: '${{ matrix.repo }}'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPLIT_TOKEN }}
+
+  tag:
+    needs: split
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - Redact
+          - Encrypt
+          - Schema
+          - Drift
+          - Dto
+          - Core
+
+    name: Tag ${{ matrix.repo }}
+
+    steps:
+      - name: Create tag in split repo
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.SPLIT_TOKEN }}
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            
+            // Get the latest commit SHA from the split repo's main branch
+            const { data: ref } = await github.rest.git.getRef({
+              owner: 'SentinelPHP',
+              repo: '${{ matrix.repo }}',
+              ref: 'heads/main'
+            });
+            
+            await github.rest.git.createRef({
+              owner: 'SentinelPHP',
+              repo: '${{ matrix.repo }}',
+              ref: `refs/tags/${tag}`,
+              sha: ref.object.sha
+            });

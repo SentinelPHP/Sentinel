@@ -1,0 +1,110 @@
+# =============================================================================
+# Stage 1: Build frontend assets
+# =============================================================================
+FROM node:22-alpine AS frontend
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --prefer-offline
+
+COPY webpack.config.js ./
+COPY assets/ assets/
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Build PHP application
+# =============================================================================
+# Pin to specific digest for reproducible builds
+# Update periodically: docker pull php:8.4-cli && docker inspect php:8.4-cli --format '{{index .RepoDigests 0}}'
+FROM php:8.4-cli@sha256:c8c4d2165bf3139039094c99c9370ead168df29ffa6c12373268dca212f0c938 AS builder
+
+ARG SWOOLE_VERSION=6.0.0
+
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libicu-dev \
+    libpq-dev \
+    libzip-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-install -j$(nproc) \
+    intl \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    pcntl \
+    zip
+
+RUN pecl install redis \
+    && pecl install --configureoptions 'enable-openssl="yes" enable-hook-curl="yes"' swoole-${SWOOLE_VERSION} \
+    && docker-php-ext-enable redis swoole
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY composer.json composer.lock symfony.lock ./
+COPY packages/ packages/
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-scripts
+
+COPY . .
+
+# Copy built frontend assets
+COPY --from=frontend /app/public/build public/build
+
+RUN composer dump-autoload --optimize --classmap-authoritative \
+    && php bin/console cache:warmup --env=prod
+
+# =============================================================================
+# Stage 3: Production image
+# =============================================================================
+FROM php:8.4-cli@sha256:c8c4d2165bf3139039094c99c9370ead168df29ffa6c12373268dca212f0c938
+
+ARG SWOOLE_VERSION=6.0.0
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libicu76 \
+    libpq5 \
+    libzip5 \
+    libcurl4 \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy extensions from builder
+COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+
+# Create non-root user
+RUN groupadd -r sentinel && useradd -r -g sentinel sentinel
+
+WORKDIR /app
+
+# Copy application from builder
+COPY --from=builder --chown=sentinel:sentinel /app /app
+
+# Production PHP configuration
+COPY .docker/php/php.prod.ini /usr/local/etc/php/conf.d/99-sentinel.ini
+
+# Security: Remove unnecessary files
+RUN rm -rf /app/tests /app/.docker /app/.ddev /app/.git /app/.env.* /app/phpunit.xml.dist /app/phpstan.dist.neon
+
+# Ensure var directory is writable for logs (cache is pre-warmed)
+RUN chown -R sentinel:sentinel /app/var
+
+# Switch to non-root user
+USER sentinel
+
+ARG PROXY_LISTEN_PORT=8080
+ENV PROXY_LISTEN_PORT=${PROXY_LISTEN_PORT}
+
+EXPOSE ${PROXY_LISTEN_PORT}
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD php -r "echo @file_get_contents('http://127.0.0.1:' . getenv('PROXY_LISTEN_PORT') . '/health') ? 'OK' : exit(1);" || exit 1
+
+CMD ["php", "bin/swoole-server"]
