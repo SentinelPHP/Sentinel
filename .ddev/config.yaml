@@ -22,6 +22,7 @@ web_extra_exposed_ports:
 
 hooks:
     post-start:
+        - exec: 'test -f .env.dev.local || php bin/console sentinel:encryption:generate-key --env-format >> .env.dev.local'
         - exec: composer install
         - exec: php bin/console doctrine:migrations:migrate --no-interaction
 
