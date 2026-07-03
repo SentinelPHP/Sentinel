@@ -1,0 +1,108 @@
+version: '3.8'
+
+# Observability stack for SentinelPHP
+# Includes: Prometheus, Grafana, Tempo (tracing), Loki (logs)
+#
+# Usage:
+#   docker compose -f .docker/observability/docker-compose.observability.yml up -d
+#
+# Access:
+#   - Grafana: http://localhost:3000 (admin/admin)
+#   - Prometheus: http://localhost:9090
+#   - Tempo: http://localhost:3200
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: sentinel-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: sentinel-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - observability
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: sentinel-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo API
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - observability
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: sentinel-loki
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Optional: Promtail for collecting logs from containers
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: sentinel-promtail
+    volumes:
+      - ./loki/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - observability
+    depends_on:
+      - loki
+    profiles:
+      - logs
+    restart: unless-stopped
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  tempo-data:
+  loki-data:

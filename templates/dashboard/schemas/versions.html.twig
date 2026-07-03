@@ -1,0 +1,209 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Version History: {{ schema.httpMethod }} {{ schema.endpointPath }}{% endblock %}
+{% block header_title %}Schema Version History{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_schemas_show', {id: schema.id}) }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to Schema
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Endpoint Information
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Endpoint</dt>
+                        <dd class="col-sm-8"><code>{{ schema.endpointPath }}</code></dd>
+
+                        <dt class="col-sm-4">Host</dt>
+                        <dd class="col-sm-8"><code>{{ schema.targetHost }}</code></dd>
+
+                        <dt class="col-sm-4">Method</dt>
+                        <dd class="col-sm-8">
+                            {% set methodColors = {
+                                'GET': 'success',
+                                'POST': 'primary',
+                                'PUT': 'warning',
+                                'PATCH': 'info',
+                                'DELETE': 'danger'
+                            } %}
+                            <span class="badge bg-{{ methodColors[schema.httpMethod] ?? 'secondary' }}">
+                                {{ schema.httpMethod }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Type</dt>
+                        <dd class="col-sm-8">
+                            {% if schema.schemaType.value == 'request' %}
+                                <span class="badge bg-info">Request</span>
+                            {% else %}
+                                <span class="badge bg-success">Response</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Versions</dt>
+                        <dd class="col-sm-8">{{ allVersions|length }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-clock-history me-2"></i>All Versions
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    {% for version in allVersions %}
+                        <a href="{{ path('dashboard_schemas_show', {id: version.id}) }}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>v{{ version.version }}</strong>
+                                {% if version.isMaster %}
+                                    <span class="badge bg-success ms-1">
+                                        <i class="bi bi-star-fill"></i> Master
+                                    </span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">{{ version.createdAt|date('M j, Y H:i') }}</small>
+                            </div>
+                            <span class="badge bg-light text-dark">{{ version.sampleCount }} samples</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-arrow-left-right me-2"></i>Compare Versions
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ path('dashboard_schemas_versions', {id: schema.id}) }}">
+                        <div class="mb-3">
+                            <label for="compare_from" class="form-label">From Version</label>
+                            <select name="compare_from" id="compare_from" class="form-select form-select-sm">
+                                <option value="">Select version...</option>
+                                {% for version in allVersions %}
+                                    <option value="{{ version.version }}" {{ compareFrom == version.version ? 'selected' : '' }}>
+                                        v{{ version.version }}{% if version.isMaster %} (Master){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="compare_to" class="form-label">To Version</label>
+                            <select name="compare_to" id="compare_to" class="form-select form-select-sm">
+                                <option value="">Select version...</option>
+                                {% for version in allVersions %}
+                                    <option value="{{ version.version }}" {{ compareTo == version.version ? 'selected' : '' }}>
+                                        v{{ version.version }}{% if version.isMaster %} (Master){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-arrow-left-right me-1"></i> Compare
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            {% if diffResult %}
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-file-diff me-2"></i>
+                            Comparing v{{ compareFrom }} → v{{ compareTo }}
+                        </span>
+                        <div>
+                            <span class="badge bg-success me-1">+{{ diffResult.additions|length }} added</span>
+                            <span class="badge bg-danger me-1">-{{ diffResult.removals|length }} removed</span>
+                            <span class="badge bg-warning">~{{ diffResult.changes|length }} changed</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="diff-viewer" data-controller="diff-viewer">
+                            {% if diffResult.additions|length > 0 %}
+                                <div class="diff-section">
+                                    <div class="diff-header bg-success-subtle p-2 border-bottom">
+                                        <strong class="text-success"><i class="bi bi-plus-circle me-1"></i>Added Fields</strong>
+                                    </div>
+                                    <div class="diff-content p-3">
+                                        {% for path, value in diffResult.additions %}
+                                            <div class="diff-item mb-2">
+                                                <code class="text-success">{{ path }}</code>
+                                                <pre class="mb-0 mt-1 p-2 bg-success-subtle rounded small"><code>{{ value|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if diffResult.removals|length > 0 %}
+                                <div class="diff-section">
+                                    <div class="diff-header bg-danger-subtle p-2 border-bottom">
+                                        <strong class="text-danger"><i class="bi bi-dash-circle me-1"></i>Removed Fields</strong>
+                                    </div>
+                                    <div class="diff-content p-3">
+                                        {% for path, value in diffResult.removals %}
+                                            <div class="diff-item mb-2">
+                                                <code class="text-danger">{{ path }}</code>
+                                                <pre class="mb-0 mt-1 p-2 bg-danger-subtle rounded small"><code>{{ value|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if diffResult.changes|length > 0 %}
+                                <div class="diff-section">
+                                    <div class="diff-header bg-warning-subtle p-2 border-bottom">
+                                        <strong class="text-warning"><i class="bi bi-pencil me-1"></i>Changed Fields</strong>
+                                    </div>
+                                    <div class="diff-content p-3">
+                                        {% for path, change in diffResult.changes %}
+                                            <div class="diff-item mb-3">
+                                                <code class="text-warning">{{ path }}</code>
+                                                <div class="row mt-1">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">From (v{{ compareFrom }}):</small>
+                                                        <pre class="mb-0 p-2 bg-danger-subtle rounded small"><code>{{ change.from|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted">To (v{{ compareTo }}):</small>
+                                                        <pre class="mb-0 p-2 bg-success-subtle rounded small"><code>{{ change.to|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if diffResult.additions|length == 0 and diffResult.removals|length == 0 and diffResult.changes|length == 0 %}
+                                <div class="text-center text-muted py-5">
+                                    <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                                    No differences found between these versions.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center text-muted py-5">
+                        <i class="bi bi-arrow-left-right fs-1 d-block mb-3"></i>
+                        <h5>Compare Schema Versions</h5>
+                        <p>Select two versions from the left panel to see the differences between them.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

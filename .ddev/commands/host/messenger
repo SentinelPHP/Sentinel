@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run Symfony Messenger consumer
+## Usage: messenger [options]
+## Example: ddev messenger
+## Example: ddev messenger --time-limit=3600
+
+ddev exec php bin/console messenger:consume async -vv --no-debug "$@"

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+## Description: Run PHPStan static analysis (main app + all packages)
+## Usage: phpstan [options]
+## Example: ddev phpstan
+## Example: ddev phpstan --level=max
+
+# Run main application analysis
+ddev exec php vendor/bin/phpstan analyse "$@"
+
+# Run analysis for each package
+for package in packages/*/; do
+    if [ -f "${package}phpstan.dist.neon" ]; then
+        echo ""
+        echo "=== Analyzing ${package} ==="
+        ddev exec php vendor/bin/phpstan analyse -c "${package}phpstan.dist.neon" "$@"
+    fi
+done

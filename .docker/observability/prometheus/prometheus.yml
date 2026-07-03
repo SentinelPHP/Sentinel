@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers: []
+
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # SentinelPHP metrics
+  - job_name: 'sentinel-php'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: /metrics
+    # Add labels to identify the service
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'sentinel-php'
+
+  # SentinelPHP production (if running in Docker)
+  - job_name: 'sentinel-php-docker'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['sentinel-app:8080']
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'sentinel-php-docker'

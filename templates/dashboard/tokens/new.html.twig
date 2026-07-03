@@ -1,0 +1,128 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Create API Token{% endblock %}
+{% block header_title %}Create API Token{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-plus-circle me-2"></i>New API Token
+                </div>
+                <div class="card-body">
+                    {{ form_start(form, {attr: {class: 'needs-validation', novalidate: 'novalidate'}}) }}
+                        
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Basic Information</h6>
+                            {{ form_row(form.name) }}
+                            {{ form_row(form.allowedTargets) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Operation Mode</h6>
+                            {{ form_row(form.mode) }}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form_row(form.learningThreshold) }}
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="mb-3">
+                                        {{ form_row(form.autoSwitchToValidating) }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form_row(form.validateRequestBody) }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Data Protection & Logging</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form_row(form.dataProtectionStrategy) }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form_row(form.logLevel) }}
+                                </div>
+                            </div>
+                            {{ form_row(form.customRedactionPatterns) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Alerting</h6>
+                            {{ form_row(form.alertMinSeverity) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Status</h6>
+                            {{ form_row(form.isActive) }}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ path('dashboard_tokens') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Create Token
+                            </button>
+                        </div>
+
+                    {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Help
+                </div>
+                <div class="card-body">
+                    <h6>Token Modes</h6>
+                    <dl class="small">
+                        <dt>Passive</dt>
+                        <dd class="text-muted">Proxy requests without any schema operations. Useful for monitoring traffic.</dd>
+                        
+                        <dt>Learning</dt>
+                        <dd class="text-muted">Build schemas automatically from observed API traffic. Use this when setting up monitoring for a new API.</dd>
+                        
+                        <dt>Validating</dt>
+                        <dd class="text-muted">Detect and report schema drifts by comparing responses against learned schemas.</dd>
+                    </dl>
+
+                    <hr>
+
+                    <h6>Allowed Targets</h6>
+                    <p class="small text-muted">
+                        Specify which hosts this token can proxy requests to. Supports wildcards:
+                    </p>
+                    <ul class="small text-muted">
+                        <li><code>api.example.com</code> - exact match</li>
+                        <li><code>*.example.com</code> - any subdomain</li>
+                        <li><code>*.stripe.com</code> - all Stripe APIs</li>
+                    </ul>
+
+                    <hr>
+
+                    <h6>Security Note</h6>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                        The token will only be shown <strong>once</strong> after creation. Make sure to copy and store it securely.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

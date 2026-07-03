@@ -1,0 +1,237 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Alert Configurations{% endblock %}
+{% block header_title %}Alert Configurations{% endblock %}
+
+{% block header_actions %}
+    {% if is_granted('ROLE_ADMIN') %}
+        <a href="{{ path('dashboard_alerts_new') }}" class="btn btn-primary btn-sm me-3">
+            <i class="bi bi-plus-lg me-1"></i> New Alert
+        </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_alerts') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="channelType" class="form-label">Channel Type</label>
+                    <select name="channelType" id="channelType" class="form-select form-select-sm">
+                        <option value="">All Channels</option>
+                        <option value="slack" {{ filters.channelType == 'slack' ? 'selected' : '' }}>Slack</option>
+                        <option value="webhook" {{ filters.channelType == 'webhook' ? 'selected' : '' }}>Webhook</option>
+                        <option value="email" {{ filters.channelType == 'email' ? 'selected' : '' }}>Email</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="active" {{ filters.status == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ filters.status == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="scope" class="form-label">Scope</label>
+                    <select name="scope" id="scope" class="form-select form-select-sm">
+                        <option value="">All Scopes</option>
+                        <option value="global" {{ filters.scope == 'global' ? 'selected' : '' }}>Global</option>
+                        <option value="token" {{ filters.scope == 'token' ? 'selected' : '' }}>Token-specific</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-bell me-2"></i>Alert Configurations
+            </h5>
+            <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Scope</th>
+                            <th>Min Severity</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                            <tr>
+                                <td>
+                                    {% if alert.channelType.value == 'slack' %}
+                                        <span class="badge bg-purple"><i class="bi bi-slack me-1"></i>Slack</span>
+                                    {% elseif alert.channelType.value == 'webhook' %}
+                                        <span class="badge bg-info"><i class="bi bi-link-45deg me-1"></i>Webhook</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-envelope me-1"></i>Email</span>
+                                    {% endif %}
+                                    {% if alert.channelConfig.webhook_url is defined %}
+                                        <br><small class="text-muted text-truncate d-inline-block" style="max-width: 200px;" title="{{ alert.channelConfig.webhook_url }}">
+                                            {{ alert.channelConfig.webhook_url }}
+                                        </small>
+                                    {% elseif alert.channelConfig.url is defined %}
+                                        <br><small class="text-muted text-truncate d-inline-block" style="max-width: 200px;" title="{{ alert.channelConfig.url }}">
+                                            {{ alert.channelConfig.url }}
+                                        </small>
+                                    {% elseif alert.channelConfig.recipients is defined %}
+                                        <br><small class="text-muted">{{ alert.channelConfig.recipients|join(', ') }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if alert.isGlobal %}
+                                        <span class="badge bg-primary">Global</span>
+                                    {% else %}
+                                        <a href="{{ path('dashboard_tokens_show', {id: alert.token.id}) }}" class="text-decoration-none">
+                                            <span class="badge bg-light text-dark">{{ alert.token.name }}</span>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if alert.minSeverity.value == 'critical' %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elseif alert.minSeverity.value == 'warning' %}
+                                        <span class="badge bg-warning text-dark">Warning</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Info</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if alert.isMuted %}
+                                        <span class="badge bg-secondary" title="Muted until {{ alert.mutedUntil|date('Y-m-d H:i') }}{% if alert.muteReason %}: {{ alert.muteReason }}{% endif %}">
+                                            <i class="bi bi-volume-mute me-1"></i>Muted
+                                        </span>
+                                    {% elseif alert.isActive %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted" title="{{ alert.createdAt|date('Y-m-d H:i:s') }}">
+                                        {{ alert.createdAt|date('M j, Y') }}
+                                    </small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        {% if is_granted('ROLE_ADMIN') %}
+                                            <a href="{{ path('dashboard_alerts_edit', {id: alert.id}) }}" 
+                                               class="btn btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            {% if alert.isMuted %}
+                                                <form method="post" action="{{ path('dashboard_alerts_unmute', {id: alert.id}) }}" class="d-inline">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('unmute_alert_' ~ alert.id) }}">
+                                                    <button type="submit" class="btn btn-outline-success" title="Unmute">
+                                                        <i class="bi bi-volume-up"></i>
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Mute">
+                                                        <i class="bi bi-volume-mute"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <form method="post" action="{{ path('dashboard_alerts_mute', {id: alert.id}) }}">
+                                                                <input type="hidden" name="_token" value="{{ csrf_token('mute_alert_' ~ alert.id) }}">
+                                                                <input type="hidden" name="duration" value="1h">
+                                                                <button type="submit" class="dropdown-item">Mute for 1 hour</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="post" action="{{ path('dashboard_alerts_mute', {id: alert.id}) }}">
+                                                                <input type="hidden" name="_token" value="{{ csrf_token('mute_alert_' ~ alert.id) }}">
+                                                                <input type="hidden" name="duration" value="4h">
+                                                                <button type="submit" class="dropdown-item">Mute for 4 hours</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="post" action="{{ path('dashboard_alerts_mute', {id: alert.id}) }}">
+                                                                <input type="hidden" name="_token" value="{{ csrf_token('mute_alert_' ~ alert.id) }}">
+                                                                <input type="hidden" name="duration" value="24h">
+                                                                <button type="submit" class="dropdown-item">Mute for 24 hours</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="post" action="{{ path('dashboard_alerts_mute', {id: alert.id}) }}">
+                                                                <input type="hidden" name="_token" value="{{ csrf_token('mute_alert_' ~ alert.id) }}">
+                                                                <input type="hidden" name="duration" value="7d">
+                                                                <button type="submit" class="dropdown-item">Mute for 7 days</button>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
+                                            <form method="post" action="{{ path('dashboard_alerts_toggle', {id: alert.id}) }}" 
+                                                  class="d-inline" onsubmit="return confirm('Are you sure you want to {{ alert.isActive ? 'deactivate' : 'activate' }} this alert?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('toggle_alert_' ~ alert.id) }}">
+                                                <button type="submit" class="btn btn-outline-{{ alert.isActive ? 'warning' : 'success' }}" 
+                                                        title="{{ alert.isActive ? 'Deactivate' : 'Activate' }}">
+                                                    <i class="bi bi-{{ alert.isActive ? 'pause' : 'play' }}"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-bell fs-1 d-block mb-2"></i>
+                                    No alert configurations found.
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        <br><a href="{{ path('dashboard_alerts_new') }}">Create your first alert configuration</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Alert pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_alerts', filters|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_alerts', filters|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_alerts', filters|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

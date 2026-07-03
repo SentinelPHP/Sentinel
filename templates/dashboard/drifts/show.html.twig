@@ -1,0 +1,218 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Drift Details{% endblock %}
+{% block header_title %}Drift Details{% endblock %}
+
+{% block content %}
+    <div class="mb-3">
+        <a href="{{ path('dashboard_drifts') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Drifts
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Drift Information
+                    </h5>
+                    {% if drift.severity.value == 'critical' %}
+                        <span class="badge bg-danger">Critical</span>
+                    {% elseif drift.severity.value == 'warning' %}
+                        <span class="badge bg-warning text-dark">Warning</span>
+                    {% else %}
+                        <span class="badge bg-info">Info</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Drift Type:</strong>
+                            <span class="badge bg-secondary ms-2">
+                                {{ drift.driftType.value|replace({'_': ' '})|capitalize }}
+                            </span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong>
+                            {% if drift.isAccepted %}
+                                <span class="badge bg-success ms-2">Accepted</span>
+                                <small class="text-muted">
+                                    by {{ drift.acceptedBy.email|default('Unknown') }}
+                                    on {{ drift.acceptedAt|date('M j, Y H:i') }}
+                                </small>
+                            {% else %}
+                                <span class="badge bg-outline-secondary ms-2">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Path:</strong>
+                            <code class="ms-2">{{ drift.path }}</code>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Created:</strong>
+                            <span class="ms-2">{{ drift.createdAt|date('M j, Y H:i:s') }}</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Endpoint:</strong>
+                            <span class="badge bg-dark ms-2">{{ drift.schema.httpMethod }}</span>
+                            <code>{{ drift.schema.endpointPath }}</code>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Token:</strong>
+                            <span class="ms-2">{{ drift.token.name }}</span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Target Host:</strong>
+                            <span class="ms-2">{{ drift.schema.targetHost }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Schema Version:</strong>
+                            <span class="ms-2">v{{ drift.schema.version }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% if canAccept %}
+                    <div class="card-footer">
+                        <form method="post" action="{{ path('dashboard_drifts_accept', {id: drift.id}) }}" class="d-inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('accept_drift_' ~ drift.id) }}">
+                            <button type="submit" class="btn btn-success" onclick="return confirm('Are you sure you want to accept this drift? This will update the master schema.')">
+                                <i class="bi bi-check-lg"></i> Accept Drift
+                            </button>
+                        </form>
+                        <small class="text-muted ms-2">
+                            Accepting will update the master schema to include this change.
+                        </small>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-file-diff me-2"></i>Value Comparison
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" data-controller="diff-viewer">
+                        <div class="col-md-6">
+                            <h6 class="text-danger">
+                                <i class="bi bi-dash-circle me-1"></i>Expected (Master Schema)
+                            </h6>
+                            <div class="diff-panel diff-expected bg-light p-3 rounded border">
+                                {% if drift.expectedValue %}
+                                    <pre class="mb-0"><code class="language-json">{{ drift.expectedValue|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES')) }}</code></pre>
+                                {% else %}
+                                    <em class="text-muted">No value (field did not exist)</em>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="bi bi-plus-circle me-1"></i>Actual (Observed)
+                            </h6>
+                            <div class="diff-panel diff-actual bg-light p-3 rounded border">
+                                {% if drift.actualValue %}
+                                    <pre class="mb-0"><code class="language-json">{{ drift.actualValue|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES')) }}</code></pre>
+                                {% else %}
+                                    <em class="text-muted">No value (field was removed)</em>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if diffResult.hasDifferences %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-list-check me-2"></i>Detailed Changes ({{ diffResult.totalCount }})
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for entry in diffResult.added %}
+                                <li class="list-group-item list-group-item-success">
+                                    <i class="bi bi-plus-circle me-2"></i>
+                                    <strong>Added:</strong>
+                                    <code>{{ entry.path }}</code>
+                                    <span class="ms-2">= {{ entry.actualValue|json_encode }}</span>
+                                </li>
+                            {% endfor %}
+                            {% for entry in diffResult.removed %}
+                                <li class="list-group-item list-group-item-danger">
+                                    <i class="bi bi-dash-circle me-2"></i>
+                                    <strong>Removed:</strong>
+                                    <code>{{ entry.path }}</code>
+                                    <span class="ms-2 text-decoration-line-through">= {{ entry.expectedValue|json_encode }}</span>
+                                </li>
+                            {% endfor %}
+                            {% for entry in diffResult.changed %}
+                                <li class="list-group-item list-group-item-warning">
+                                    <i class="bi bi-arrow-left-right me-2"></i>
+                                    <strong>Changed:</strong>
+                                    <code>{{ entry.path }}</code>
+                                    <br>
+                                    <small class="text-danger">- {{ entry.expectedValue|json_encode }}</small>
+                                    <br>
+                                    <small class="text-success">+ {{ entry.actualValue|json_encode }}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Drift Timeline
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                        {% for item in timeline %}
+                            <a href="{{ path('dashboard_drifts_show', {id: item.id}) }}" 
+                               class="list-group-item list-group-item-action {{ item.id == drift.id ? 'active' : '' }}">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <small>
+                                        {% if item.severity.value == 'critical' %}
+                                            <span class="badge bg-danger">C</span>
+                                        {% elseif item.severity.value == 'warning' %}
+                                            <span class="badge bg-warning text-dark">W</span>
+                                        {% else %}
+                                            <span class="badge bg-info">I</span>
+                                        {% endif %}
+                                        {{ item.driftType.value|replace({'_': ' '})|capitalize }}
+                                    </small>
+                                    <small class="{{ item.id == drift.id ? '' : 'text-muted' }}">
+                                        {{ item.createdAt|date('M j, H:i') }}
+                                    </small>
+                                </div>
+                                <small class="{{ item.id == drift.id ? '' : 'text-muted' }}">
+                                    <code>{{ item.path|length > 30 ? item.path[:30] ~ '...' : item.path }}</code>
+                                </small>
+                                {% if item.isAccepted %}
+                                    <span class="badge bg-success float-end">Accepted</span>
+                                {% endif %}
+                            </a>
+                        {% else %}
+                            <div class="list-group-item text-center text-muted py-4">
+                                No other drifts for this endpoint.
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

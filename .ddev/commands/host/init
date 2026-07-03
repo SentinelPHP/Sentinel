@@ -1,0 +1,50 @@
+#!/bin/bash
+
+## Description: Initialize fresh development environment (removes all data)
+## Usage: init
+## Example: ddev init
+
+set -e
+
+echo "Removing existing DDEV environment..."
+ddev delete -Oy 2>/dev/null || true
+
+echo "Starting DDEV..."
+ddev start
+
+echo "Installing Composer dependencies..."
+ddev composer install
+
+echo "Running database migrations..."
+ddev console doctrine:migrations:migrate --no-interaction
+
+echo "Installing npm dependencies..."
+ddev npm install
+
+echo "Building frontend assets..."
+ddev npm run build
+
+echo "Creating local test environment config..."
+cat > .env.test.local << 'EOF'
+# DDEV-specific test configuration (gitignored, not used in CI)
+
+# Database
+DATABASE_URL="postgresql://db:db@db:5432/db?serverVersion=16&charset=utf8"
+
+# Redis
+REDIS_URL="redis://redis:6379"
+
+# Selenium hub for Browser tests
+PANTHER_EXTERNAL_BASE_URI=https://sentinelphp.ddev.site
+PANTHER_SELENIUM_HUB=http://hub:4444/wd/hub
+EOF
+
+echo "Creating test users..."
+ddev console sentinel:user:create test@test.test --password=test1234 --admin
+ddev console sentinel:user:create panther-admin@example.com --password=password --admin
+ddev console sentinel:user:create panther-test@example.com --password=password
+
+echo ""
+echo "✓ Development environment ready!"
+echo "  Dev user: test@test.test / test1234"
+echo "  Browser test users: panther-admin@example.com, panther-test@example.com (password: password)"

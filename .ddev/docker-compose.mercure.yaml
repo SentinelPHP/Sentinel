@@ -1,0 +1,22 @@
+services:
+  mercure:
+    image: dunglas/mercure:latest
+    container_name: ddev-${DDEV_SITENAME}-mercure
+    restart: "no"
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
+    environment:
+      # Disable HTTPS in development (DDEV handles SSL termination)
+      SERVER_NAME: ':80'
+      MERCURE_PUBLISHER_JWT_KEY: '${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}'
+      MERCURE_SUBSCRIBER_JWT_KEY: '${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}'
+      # Allow anonymous subscribers for dashboard
+      MERCURE_EXTRA_DIRECTIVES: |
+        anonymous
+        cors_origins *
+    expose:
+      - "80"
+    networks:
+      - default
+      - ddev_default

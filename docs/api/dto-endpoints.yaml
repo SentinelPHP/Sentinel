@@ -1,0 +1,393 @@
+openapi: 3.1.0
+info:
+  title: SentinelPHP DTO API
+  description: |
+    API endpoints for retrieving and generating PHP Data Transfer Objects (DTOs) 
+    from learned JSON schemas.
+    
+    All endpoints require Bearer token authentication using an API token.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API token obtained from the dashboard
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Authentication required"
+
+    SchemaReference:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+        endpointPath:
+          type: string
+          example: "/users"
+        httpMethod:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+          example: "GET"
+        targetHost:
+          type: string
+          example: "api.example.com"
+
+    DtoSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+        className:
+          type: string
+          example: "GetUsersResponse"
+        namespace:
+          type: string
+          example: "App\\Dto\\Generated"
+        fullyQualifiedClassName:
+          type: string
+          example: "App\\Dto\\Generated\\GetUsersResponse"
+        version:
+          type: integer
+          example: 1
+        isCurrent:
+          type: boolean
+          example: true
+        checksum:
+          type: string
+          description: SHA-256 hash of the PHP code
+          example: "a1b2c3d4e5f6..."
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+          example: "completed"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-04-22T20:00:00+00:00"
+        schema:
+          $ref: '#/components/schemas/SchemaReference'
+
+    DtoFull:
+      allOf:
+        - $ref: '#/components/schemas/DtoSummary'
+        - type: object
+          properties:
+            phpCode:
+              type: string
+              description: The generated PHP class code
+              example: "<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Dto\\Generated;\n\nfinal readonly class GetUsersResponse\n{\n    public function __construct(\n        public int $id,\n        public string $name,\n    ) {\n    }\n}"
+
+    DtoBase64:
+      allOf:
+        - $ref: '#/components/schemas/DtoSummary'
+        - type: object
+          properties:
+            phpCodeBase64:
+              type: string
+              format: byte
+              description: Base64-encoded PHP code for binary-safe transfer
+              example: "PD9waHAKCmRlY2xhcmUoc3RyaWN0X3R5cGVzPTEpOwo..."
+
+    DtoListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DtoSummary'
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of DTOs matching the filters
+              example: 42
+            limit:
+              type: integer
+              description: Number of results per page
+              example: 50
+            offset:
+              type: integer
+              description: Current offset
+              example: 0
+            hasMore:
+              type: boolean
+              description: Whether more results are available
+              example: false
+
+    GenerateRequest:
+      type: object
+      required:
+        - schema_id
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          description: UUID of the schema to generate a DTO for
+          example: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+
+    GenerateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "DTO generation has been queued"
+        schema_id:
+          type: string
+          format: uuid
+          example: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
+
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: true
+            message: "Authentication required"
+
+    Forbidden:
+      description: Access denied to the requested resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: true
+            message: "You do not have access to this DTO"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: true
+            message: "DTO not found"
+
+paths:
+  /dtos:
+    get:
+      summary: List DTOs
+      description: |
+        Returns a paginated list of DTOs for schemas owned by the authenticated token.
+        
+        Results can be filtered by class name, namespace, or endpoint path.
+      operationId: listDtos
+      tags:
+        - DTOs
+      parameters:
+        - name: limit
+          in: query
+          description: Number of results to return (max 100)
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: class_name
+          in: query
+          description: Filter by class name (partial match)
+          schema:
+            type: string
+        - name: namespace
+          in: query
+          description: Filter by namespace (partial match)
+          schema:
+            type: string
+        - name: endpoint_path
+          in: query
+          description: Filter by endpoint path (partial match)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of DTOs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DtoListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /dtos/{id}:
+    get:
+      summary: Get a specific DTO
+      description: |
+        Returns details of a specific DTO including the generated PHP code.
+        
+        The response format can be controlled via the `format` query parameter:
+        - `json` (default): Full JSON response with phpCode field
+        - `php`: Raw PHP code with text/x-php content type
+        - `base64`: JSON response with base64-encoded PHP code
+      operationId: getDto
+      tags:
+        - DTOs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: DTO UUID
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          description: Response format
+          schema:
+            type: string
+            enum: [json, php, base64]
+            default: json
+        - name: version
+          in: query
+          description: Specific version to retrieve (default is current)
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: DTO details
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DtoFull'
+                  - $ref: '#/components/schemas/DtoBase64'
+            text/x-php:
+              schema:
+                type: string
+              example: "<?php\n\ndeclare(strict_types=1);\n..."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dtos/{id}/download:
+    get:
+      summary: Download DTO as PHP file
+      description: |
+        Downloads the DTO as a PHP file attachment.
+        
+        The filename will be `{ClassName}.php`.
+      operationId: downloadDto
+      tags:
+        - DTOs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: DTO UUID
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          description: Specific version to download (default is current)
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: PHP file download
+          headers:
+            Content-Disposition:
+              description: Attachment with filename
+              schema:
+                type: string
+                example: 'attachment; filename="GetUsersResponse.php"'
+          content:
+            text/x-php:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dtos/generate:
+    post:
+      summary: Trigger DTO generation
+      description: |
+        Queues a DTO generation job for the specified schema.
+        
+        The generation is performed asynchronously. Poll the DTO list or 
+        use webhooks to be notified when generation is complete.
+      operationId: generateDto
+      tags:
+        - DTOs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+      responses:
+        '202':
+          description: Generation job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingSchemaId:
+                  value:
+                    error: true
+                    message: "schema_id is required"
+                invalidJson:
+                  value:
+                    error: true
+                    message: "Invalid JSON in request body"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+tags:
+  - name: DTOs
+    description: Operations for retrieving and generating PHP DTOs

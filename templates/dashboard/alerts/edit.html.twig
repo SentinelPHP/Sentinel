@@ -1,0 +1,210 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Edit Alert Configuration{% endblock %}
+{% block header_title %}Edit Alert Configuration{% endblock %}
+
+{% block header_actions %}
+    <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary btn-sm me-3">
+        <i class="bi bi-arrow-left me-1"></i> Back to Alerts
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-bell-fill me-2"></i>Edit Alert Configuration</span>
+                    <div>
+                        {% if alert.isMuted %}
+                            <span class="badge bg-secondary me-2">
+                                <i class="bi bi-volume-mute me-1"></i>Muted until {{ alert.mutedUntil|date('M j, H:i') }}
+                            </span>
+                        {% endif %}
+                        {% if alert.isActive %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+                        <div class="mb-3">
+                            {{ form_row(form.channelType) }}
+                        </div>
+
+                        <div id="slack-fields">
+                            {{ form_row(form.slackWebhookUrl) }}
+                            {{ form_row(form.slackChannel) }}
+                        </div>
+
+                        <div id="webhook-fields">
+                            {{ form_row(form.webhookUrl) }}
+                            {{ form_row(form.webhookSecret) }}
+                        </div>
+
+                        <div id="email-fields">
+                            {{ form_row(form.emailRecipients) }}
+                            {{ form_row(form.emailSubjectPrefix) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="mb-3">
+                            {{ form_row(form.minSeverity) }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form_row(form.token) }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form_row(form.isActive) }}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg me-1"></i> Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-outline-info me-2" id="test-alert-btn">
+                                    <i class="bi bi-send me-1"></i> Test Alert
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg me-1"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    {{ form_end(form) }}
+                </div>
+            </div>
+
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Danger Zone
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Delete this alert configuration</h6>
+                            <p class="text-muted mb-0 small">This action cannot be undone.</p>
+                        </div>
+                        <form method="post" action="{{ path('dashboard_alerts_delete', {id: alert.id}) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this alert configuration? This action cannot be undone.');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete_alert_' ~ alert.id) }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-1"></i> Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="testAlertModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-send me-2"></i>Test Alert</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="test-alert-loading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Sending test alert...</span>
+                        </div>
+                        <p class="mt-2 mb-0">Sending test alert...</p>
+                    </div>
+                    <div id="test-alert-result" class="d-none">
+                        <div id="test-alert-success" class="alert alert-success d-none">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>Test alert sent successfully!</span>
+                        </div>
+                        <div id="test-alert-error" class="alert alert-danger d-none">
+                            <i class="bi bi-x-circle me-2"></i>
+                            <span id="test-alert-error-message">Failed to send test alert.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const channelTypeSelect = document.getElementById('alert_configuration_channelType');
+            
+            function updateFieldVisibility() {
+                const value = channelTypeSelect.value;
+                
+                document.querySelectorAll('[data-alert-config-form-target="slackFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'slack');
+                });
+                document.querySelectorAll('[data-alert-config-form-target="webhookFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'webhook');
+                });
+                document.querySelectorAll('[data-alert-config-form-target="emailFields"]').forEach(el => {
+                    el.classList.toggle('d-none', value !== 'email');
+                });
+            }
+            
+            if (channelTypeSelect) {
+                channelTypeSelect.addEventListener('change', updateFieldVisibility);
+                updateFieldVisibility();
+            }
+
+            const testAlertBtn = document.getElementById('test-alert-btn');
+            const testAlertModal = new bootstrap.Modal(document.getElementById('testAlertModal'));
+            
+            testAlertBtn.addEventListener('click', function() {
+                document.getElementById('test-alert-loading').classList.remove('d-none');
+                document.getElementById('test-alert-result').classList.add('d-none');
+                document.getElementById('test-alert-success').classList.add('d-none');
+                document.getElementById('test-alert-error').classList.add('d-none');
+                
+                testAlertModal.show();
+                
+                fetch('{{ path('dashboard_alerts_test', {id: alert.id}) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        _token: '{{ csrf_token('test_alert_' ~ alert.id) }}'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('test-alert-loading').classList.add('d-none');
+                    document.getElementById('test-alert-result').classList.remove('d-none');
+                    
+                    if (data.success) {
+                        document.getElementById('test-alert-success').classList.remove('d-none');
+                    } else {
+                        document.getElementById('test-alert-error').classList.remove('d-none');
+                        document.getElementById('test-alert-error-message').textContent = data.message || 'Failed to send test alert.';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('test-alert-loading').classList.add('d-none');
+                    document.getElementById('test-alert-result').classList.remove('d-none');
+                    document.getElementById('test-alert-error').classList.remove('d-none');
+                    document.getElementById('test-alert-error-message').textContent = 'Network error. Please try again.';
+                });
+            });
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Latency - {{ host }}{% endblock %}
+{% block header_title %}Latency Benchmarking{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('dashboard_services') }}">Service Health</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('dashboard_services_show', {host: host}) }}">{{ host }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Latency</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <h2 class="mb-0">{{ host }}</h2>
+            <span class="badge ms-3 bg-{{ trend == 'improving' ? 'success' : (trend == 'degrading' ? 'danger' : 'secondary') }}">
+                <i class="bi bi-{{ trend == 'improving' ? 'arrow-down-circle' : (trend == 'degrading' ? 'arrow-up-circle' : 'dash-circle') }}"></i>
+                {{ trend|capitalize }}
+            </span>
+        </div>
+        <div class="btn-group" role="group" aria-label="Baseline selection">
+            <a href="{{ path('dashboard_services_latency', {host: host, baseline: '24h'}) }}" 
+               class="btn btn-{{ baselineType == '24h' ? 'primary' : 'outline-primary' }}">24h</a>
+            <a href="{{ path('dashboard_services_latency', {host: host, baseline: '7d'}) }}" 
+               class="btn btn-{{ baselineType == '7d' ? 'primary' : 'outline-primary' }}">7d</a>
+            <a href="{{ path('dashboard_services_latency', {host: host, baseline: '30d'}) }}" 
+               class="btn btn-{{ baselineType == '30d' ? 'primary' : 'outline-primary' }}">30d</a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">P50 Latency</div>
+                    <div class="card-stat-value d-flex align-items-center">
+                        {{ percentiles.p50 }}ms
+                        {% set change = comparison.change.p50 %}
+                        {% if change != 0 %}
+                            <small class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                <i class="bi bi-{{ change < 0 ? 'arrow-down' : 'arrow-up' }}"></i>
+                                {{ change|abs|number_format(1) }}%
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">P95 Latency</div>
+                    <div class="card-stat-value d-flex align-items-center">
+                        {{ percentiles.p95 }}ms
+                        {% set change = comparison.change.p95 %}
+                        {% if change != 0 %}
+                            <small class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                <i class="bi bi-{{ change < 0 ? 'arrow-down' : 'arrow-up' }}"></i>
+                                {{ change|abs|number_format(1) }}%
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">P99 Latency</div>
+                    <div class="card-stat-value d-flex align-items-center">
+                        {{ percentiles.p99 }}ms
+                        {% set change = comparison.change.p99 %}
+                        {% if change != 0 %}
+                            <small class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                <i class="bi bi-{{ change < 0 ? 'arrow-down' : 'arrow-up' }}"></i>
+                                {{ change|abs|number_format(1) }}%
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body">
+                    <div class="card-stat-label">Avg Latency</div>
+                    <div class="card-stat-value d-flex align-items-center">
+                        {{ percentiles.avg }}ms
+                        {% set change = comparison.change.avg %}
+                        {% if change != 0 %}
+                            <small class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                <i class="bi bi-{{ change < 0 ? 'arrow-down' : 'arrow-up' }}"></i>
+                                {{ change|abs|number_format(1) }}%
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latency Over Time (6h)</h5>
+                </div>
+                <div class="card-body">
+                    {% if timeSeries|length > 0 %}
+                        <canvas 
+                            data-controller="latency-sparkline"
+                            data-latency-sparkline-data-value="{{ timeSeries|json_encode }}"
+                            data-latency-sparkline-threshold-yellow-value="500"
+                            data-latency-sparkline-threshold-red-value="1000"
+                            data-latency-sparkline-show-percentiles-value="true"
+                            data-latency-sparkline-height-value="300"
+                            style="height: 300px;"
+                        ></canvas>
+                    {% else %}
+                        <div class="d-flex align-items-center justify-content-center text-muted" style="height: 300px;">
+                            <div class="text-center">
+                                <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+                                <p>No latency data available for this time period</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Rolling Averages</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">1 minute</span>
+                            <span class="fw-semibold">{{ rollingAverages['1m'] ?? '-' }}ms</span>
+                        </div>
+                        {% if rollingAverages['1m'] %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-{{ rollingAverages['1m'] < 500 ? 'success' : (rollingAverages['1m'] < 1000 ? 'warning' : 'danger') }}" 
+                                     style="width: {{ min(rollingAverages['1m'] / 20, 100) }}%"></div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">5 minutes</span>
+                            <span class="fw-semibold">{{ rollingAverages['5m'] ?? '-' }}ms</span>
+                        </div>
+                        {% if rollingAverages['5m'] %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-{{ rollingAverages['5m'] < 500 ? 'success' : (rollingAverages['5m'] < 1000 ? 'warning' : 'danger') }}" 
+                                     style="width: {{ min(rollingAverages['5m'] / 20, 100) }}%"></div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">1 hour</span>
+                            <span class="fw-semibold">{{ rollingAverages['1h'] ?? '-' }}ms</span>
+                        </div>
+                        {% if rollingAverages['1h'] %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-{{ rollingAverages['1h'] < 500 ? 'success' : (rollingAverages['1h'] < 1000 ? 'warning' : 'danger') }}" 
+                                     style="width: {{ min(rollingAverages['1h'] / 20, 100) }}%"></div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Current Period (Last Hour)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">P50</td>
+                                <td class="fw-semibold text-end">{{ comparison.current.p50 }}ms</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">P95</td>
+                                <td class="fw-semibold text-end">{{ comparison.current.p95 }}ms</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">P99</td>
+                                <td class="fw-semibold text-end">{{ comparison.current.p99 }}ms</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Average</td>
+                                <td class="fw-semibold text-end">{{ comparison.current.avg }}ms</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Min</td>
+                                <td class="fw-semibold text-end">{{ percentiles.min }}ms</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Max</td>
+                                <td class="fw-semibold text-end">{{ percentiles.max }}ms</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Baseline ({{ baselineType }} ago)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">P50</td>
+                                <td class="text-end">
+                                    <span class="fw-semibold">{{ comparison.baseline.p50 }}ms</span>
+                                    {% set change = comparison.change.p50 %}
+                                    {% if change != 0 %}
+                                        <span class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                            {{ change > 0 ? '+' : '' }}{{ change|number_format(1) }}%
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">P95</td>
+                                <td class="text-end">
+                                    <span class="fw-semibold">{{ comparison.baseline.p95 }}ms</span>
+                                    {% set change = comparison.change.p95 %}
+                                    {% if change != 0 %}
+                                        <span class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                            {{ change > 0 ? '+' : '' }}{{ change|number_format(1) }}%
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">P99</td>
+                                <td class="text-end">
+                                    <span class="fw-semibold">{{ comparison.baseline.p99 }}ms</span>
+                                    {% set change = comparison.change.p99 %}
+                                    {% if change != 0 %}
+                                        <span class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                            {{ change > 0 ? '+' : '' }}{{ change|number_format(1) }}%
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Average</td>
+                                <td class="text-end">
+                                    <span class="fw-semibold">{{ comparison.baseline.avg }}ms</span>
+                                    {% set change = comparison.change.avg %}
+                                    {% if change != 0 %}
+                                        <span class="ms-2 text-{{ change < 0 ? 'success' : 'danger' }}">
+                                            {{ change > 0 ? '+' : '' }}{{ change|number_format(1) }}%
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

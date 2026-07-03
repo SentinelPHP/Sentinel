@@ -1,0 +1,49 @@
+{#
+    API Error Component
+    
+    Usage: {{ include('components/error/api_error.html.twig', {
+        title: 'Failed to load data',
+        message: 'Please try again later.',
+        retryUrl: path('dashboard_index')
+    }) }}
+    
+    Parameters:
+    - title: Error title (default: 'Something went wrong')
+    - message: Error message (default: 'An unexpected error occurred.')
+    - retryUrl: URL for retry button (optional)
+    - retryAction: Stimulus action for retry (optional, alternative to retryUrl)
+    - showIcon: Whether to show error icon (default: true)
+#}
+{% set title = title|default('Something went wrong') %}
+{% set message = message|default('An unexpected error occurred. Please try again later.') %}
+{% set showIcon = showIcon|default(true) %}
+
+<div class="error-boundary" role="alert">
+    {% if showIcon %}
+    <div class="error-icon">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    </div>
+    {% endif %}
+    
+    <h3 class="error-title">{{ title }}</h3>
+    <p class="error-message">{{ message }}</p>
+    
+    <div class="d-flex justify-content-center gap-2">
+        {% if retryUrl is defined and retryUrl %}
+        <a href="{{ retryUrl }}" class="btn btn-danger">
+            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+            Try Again
+        </a>
+        {% elseif retryAction is defined and retryAction %}
+        <button type="button" class="btn btn-danger" data-action="{{ retryAction }}">
+            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+            Try Again
+        </button>
+        {% endif %}
+        
+        <a href="{{ path('dashboard_index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-house me-1" aria-hidden="true"></i>
+            Go to Dashboard
+        </a>
+    </div>
+</div>

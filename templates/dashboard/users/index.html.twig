@@ -1,0 +1,76 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Users{% endblock %}
+{% block header_title %}User Management{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">All Users</h5>
+            <span class="badge bg-secondary">{{ users|length }} users</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th>Last Login</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-person-circle me-2 text-muted"></i>
+                                        <a href="{{ path('dashboard_users_show', {id: user.id}) }}" class="text-decoration-none">
+                                            {{ user.email }}
+                                        </a>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if user.isAdmin %}
+                                        <span class="badge bg-danger">Admin</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ user.createdAt|date('M j, Y') }}</small>
+                                </td>
+                                <td>
+                                    {% if user.lastLoginAt %}
+                                        <small class="text-muted">{{ user.lastLoginAt|date('M j, Y H:i') }}</small>
+                                    {% else %}
+                                        <small class="text-muted">Never</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ path('dashboard_users_show', {id: user.id}) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if not user.isAdmin %}
+                                        <a href="{{ path('dashboard_users_permissions', {id: user.id}) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="bi bi-people fs-1 d-block mb-2"></i>
+                                    No users found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

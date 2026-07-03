@@ -1,0 +1,192 @@
+<div 
+    {{ attributes }}
+    data-poll="delay(30000)|$render"
+>
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body d-flex align-items-center">
+                    <div class="card-stat-icon bg-primary bg-opacity-10 text-primary me-3">
+                        <i class="bi bi-key"></i>
+                    </div>
+                    <div>
+                        <div class="card-stat-value">{{ this.stats.tokens.active }}/{{ this.stats.tokens.total }}</div>
+                        <div class="card-stat-label">API Tokens (active/total)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body d-flex align-items-center">
+                    <div class="card-stat-icon bg-success bg-opacity-10 text-success me-3">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+                    <div>
+                        <div class="card-stat-value">{{ this.stats.requests.last24h|number_format }}</div>
+                        <div class="card-stat-label">Requests (24h)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body d-flex align-items-center">
+                    <div class="card-stat-icon bg-warning bg-opacity-10 text-warning me-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <div class="card-stat-value">
+                            {{ this.stats.drifts.total }}
+                            {% if this.stats.drifts.critical > 0 %}
+                                <span class="badge bg-danger ms-1" title="Critical">{{ this.stats.drifts.critical }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-stat-label">Drifts (24h)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-stat">
+                <div class="card-body d-flex align-items-center">
+                    <div class="card-stat-icon bg-info bg-opacity-10 text-info me-3">
+                        <i class="bi bi-heart-pulse"></i>
+                    </div>
+                    <div>
+                        <div class="card-stat-value d-flex align-items-center">
+                            <span class="status-indicator status-{{ this.stats.health.status == 'ok' ? 'green' : 'yellow' }} me-2"></span>
+                            {{ this.stats.health.status == 'ok' ? 'Healthy' : 'Degraded' }}
+                        </div>
+                        <div class="card-stat-label">System Status</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Request Volume</h5>
+                    <button 
+                        type="button" 
+                        class="btn btn-sm btn-outline-secondary"
+                        data-action="live#action"
+                        data-live-action-param="refresh"
+                        title="Refresh data"
+                    >
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <canvas 
+                        id="requestVolumeChart" 
+                        data-controller="sparkline"
+                        data-sparkline-data-value="{{ this.stats.requests.trend|json_encode }}"
+                        data-sparkline-label-value="Requests"
+                        data-sparkline-type-value="bar"
+                        style="height: 300px;"
+                    ></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Drifts</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if this.stats.recentDrifts|length > 0 %}
+                        <ul class="list-group list-group-flush">
+                            {% for drift in this.stats.recentDrifts %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% if drift.severity == 'critical' %}
+                                            <span class="badge bg-danger me-2">Critical</span>
+                                        {% elseif drift.severity == 'warning' %}
+                                            <span class="badge bg-warning text-dark me-2">Warning</span>
+                                        {% else %}
+                                            <span class="badge bg-info text-dark me-2">Info</span>
+                                        {% endif %}
+                                        <code>{{ drift.endpoint }}</code>
+                                    </div>
+                                    <small class="text-muted" title="{{ drift.createdAt|date('Y-m-d H:i:s') }}">
+                                        {{ drift.createdAt|date('H:i') }}
+                                    </small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-check-circle fs-1 mb-2 d-block"></i>
+                            No drifts detected in the last 24 hours
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('dashboard_drifts') }}" class="btn btn-sm btn-outline-primary w-100">View All Drifts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-0">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Service Health</h5>
+                </div>
+                <div class="card-body">
+                    {% if this.stats.services|length > 0 %}
+                        <div class="row g-3">
+                            {% for service in this.stats.services|slice(0, 4) %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-3 bg-light rounded">
+                                        <span class="status-indicator status-{{ service.status }} me-3"></span>
+                                        <div>
+                                            <div class="fw-semibold text-truncate" title="{{ service.host }}">{{ service.host }}</div>
+                                            <small class="text-muted">{{ service.avgLatencyMs }}ms avg</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-hdd-network fs-1 mb-2 d-block"></i>
+                            No service data available yet
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('dashboard_services') }}" class="btn btn-sm btn-outline-primary w-100">View All Services</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ path('dashboard_tokens') }}" class="btn btn-outline-primary text-start">
+                            <i class="bi bi-plus-circle me-2"></i>Create New API Token
+                        </a>
+                        <a href="{{ path('dashboard_drifts') }}" class="btn btn-outline-primary text-start">
+                            <i class="bi bi-search me-2"></i>Inspect Recent Drifts
+                        </a>
+                        <a href="{{ path('dashboard_alerts') }}" class="btn btn-outline-primary text-start">
+                            <i class="bi bi-bell me-2"></i>Configure Alerts
+                        </a>
+                        <a href="{{ path('dashboard_logs') }}" class="btn btn-outline-primary text-start">
+                            <i class="bi bi-journal-text me-2"></i>View Request Logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

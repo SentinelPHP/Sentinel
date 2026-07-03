@@ -1,0 +1,25 @@
+{#
+    Skeleton Card Component
+    
+    Usage: {{ include('components/skeleton/card.html.twig', {count: 4}) }}
+    
+    Parameters:
+    - count: Number of skeleton cards to render (default: 1)
+    - cols: Bootstrap column classes (default: 'col-sm-6 col-xl-3')
+#}
+{% set count = count|default(1) %}
+{% set cols = cols|default('col-sm-6 col-xl-3') %}
+
+{% for i in 1..count %}
+<div class="{{ cols }}">
+    <div class="card card-stat skeleton-card" aria-hidden="true">
+        <div class="card-body d-flex align-items-center">
+            <div class="skeleton-icon me-3"></div>
+            <div class="flex-grow-1">
+                <div class="skeleton-value"></div>
+                <div class="skeleton-label"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}

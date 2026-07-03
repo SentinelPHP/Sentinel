@@ -1,0 +1,27 @@
+{#
+    Skeleton List Component
+    
+    Usage: {{ include('components/skeleton/list.html.twig', {items: 5}) }}
+    
+    Parameters:
+    - items: Number of skeleton items (default: 5)
+    - showAvatar: Whether to show avatar placeholder (default: false)
+    - flush: Whether to use list-group-flush (default: true)
+#}
+{% set items = items|default(5) %}
+{% set showAvatar = showAvatar|default(false) %}
+{% set flush = flush|default(true) %}
+
+<ul class="list-group {{ flush ? 'list-group-flush' : '' }}" aria-hidden="true" aria-busy="true">
+    {% for i in 1..items %}
+    <li class="list-group-item d-flex align-items-center">
+        {% if showAvatar %}
+        <div class="skeleton-avatar me-3"></div>
+        {% endif %}
+        <div class="flex-grow-1">
+            <div class="skeleton-text mb-2" style="width: {{ random(60, 90) }}%;"></div>
+            <div class="skeleton-text skeleton-text-sm" style="width: {{ random(30, 50) }}%;"></div>
+        </div>
+    </li>
+    {% endfor %}
+</ul>

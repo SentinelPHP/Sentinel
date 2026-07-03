@@ -1,0 +1,27 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+    
+    # Trust proxy headers for SSL termination (nginx, load balancers)
+    trusted_proxies: '%env(default::TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
+
+    session:
+        cookie_secure: auto
+        cookie_samesite: lax
+
+when@dev:
+    framework:
+        session:
+            handler_id: '%env(REDIS_URL)%'
+
+when@prod:
+    framework:
+        session:
+            storage_factory_id: App\Swoole\SwooleSessionStorageFactory
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

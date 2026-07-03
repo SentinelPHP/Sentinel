@@ -1,0 +1,44 @@
+{#
+    Form Errors Component
+    
+    Usage: {{ include('components/error/form_errors.html.twig', {form: form}) }}
+    
+    Or for custom errors:
+    {{ include('components/error/form_errors.html.twig', {errors: ['Error 1', 'Error 2']}) }}
+    
+    Parameters:
+    - form: Symfony form object (optional)
+    - errors: Array of error messages (optional)
+    - title: Error summary title (default: 'Please fix the following errors:')
+#}
+{% set title = title|default('Please fix the following errors:') %}
+
+{% set errorList = [] %}
+
+{# Collect errors from form if provided #}
+{% if form is defined and form.vars.errors|length > 0 %}
+    {% for error in form.vars.errors %}
+        {% set errorList = errorList|merge([error.message]) %}
+    {% endfor %}
+{% endif %}
+
+{# Use provided errors array #}
+{% if errors is defined and errors|length > 0 %}
+    {% set errorList = errorList|merge(errors) %}
+{% endif %}
+
+{% if errorList|length > 0 %}
+<div class="alert alert-danger" role="alert" aria-live="assertive">
+    <div class="d-flex align-items-start">
+        <i class="bi bi-exclamation-triangle-fill me-2 mt-1" aria-hidden="true"></i>
+        <div>
+            <strong>{{ title }}</strong>
+            <ul class="mb-0 mt-2 ps-3">
+                {% for error in errorList %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}

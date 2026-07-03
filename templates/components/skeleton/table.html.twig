@@ -1,0 +1,40 @@
+{#
+    Skeleton Table Component
+    
+    Usage: {{ include('components/skeleton/table.html.twig', {rows: 5, cols: 6}) }}
+    
+    Parameters:
+    - rows: Number of skeleton rows (default: 5)
+    - cols: Number of columns (default: 6)
+    - showHeader: Whether to show skeleton header (default: true)
+#}
+{% set rows = rows|default(5) %}
+{% set cols = cols|default(6) %}
+{% set showHeader = showHeader|default(true) %}
+
+<div class="table-responsive" aria-hidden="true" aria-busy="true">
+    <table class="table table-hover mb-0">
+        {% if showHeader %}
+        <thead>
+            <tr>
+                {% for c in 1..cols %}
+                <th>
+                    <span class="skeleton-text skeleton-text-sm" style="width: {{ random(40, 80) }}%;"></span>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        {% endif %}
+        <tbody>
+            {% for r in 1..rows %}
+            <tr class="skeleton-table-row">
+                {% for c in 1..cols %}
+                <td>
+                    <span class="skeleton-cell" style="width: {{ random(50, 90) }}%;"></span>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

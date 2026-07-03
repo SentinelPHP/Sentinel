@@ -1,0 +1,18 @@
+#!/bin/bash
+
+## Description: Run PHPUnit tests (main app + all packages)
+## Usage: test [options]
+## Example: ddev test
+## Example: ddev test --filter=ProxyTest
+
+# Run main application tests
+ddev exec php bin/phpunit "$@"
+
+# Run tests for each package
+for package in packages/*/; do
+    if [ -f "${package}vendor/bin/phpunit" ]; then
+        echo ""
+        echo "=== Testing ${package} ==="
+        ddev exec php "${package}vendor/bin/phpunit" -c "${package}" "$@"
+    fi
+done

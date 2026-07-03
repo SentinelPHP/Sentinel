@@ -1,0 +1,199 @@
+{% extends 'dashboard/layout.html.twig' %}
+
+{% block page_title %}Drift Inspector{% endblock %}
+{% block header_title %}Drift Inspector{% endblock %}
+
+{% block content %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h3 class="text-danger mb-0">{{ severityCounts.critical|default(0) }}</h3>
+                    <small class="text-muted">Critical</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h3 class="text-warning mb-0">{{ severityCounts.warning|default(0) }}</h3>
+                    <small class="text-muted">Warning</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h3 class="text-info mb-0">{{ severityCounts.info|default(0) }}</h3>
+                    <small class="text-muted">Info</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-funnel me-2"></i>Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('dashboard_drifts') }}" class="row g-3">
+                <div class="col-md-2">
+                    <label for="severity" class="form-label">Severity</label>
+                    <select name="severity" id="severity" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        {% for sev in severities %}
+                            <option value="{{ sev.value }}" {{ filters.severity == sev.value ? 'selected' : '' }}>
+                                {{ sev.value|capitalize }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="drift_type" class="form-label">Drift Type</label>
+                    <select name="drift_type" id="drift_type" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        {% for dt in driftTypes %}
+                            <option value="{{ dt.value }}" {{ filters.driftType == dt.value ? 'selected' : '' }}>
+                                {{ dt.value|replace({'_': ' '})|capitalize }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="token_id" class="form-label">Token</label>
+                    <select name="token_id" id="token_id" class="form-select form-select-sm">
+                        <option value="">All Tokens</option>
+                        {% for token in tokens %}
+                            <option value="{{ token.id }}" {{ filters.tokenId == token.id|default('')|raw ? 'selected' : '' }}>
+                                {{ token.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="from" class="form-label">From</label>
+                    <input type="date" name="from" id="from" class="form-control form-control-sm" value="{{ filters.from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="to" class="form-label">To</label>
+                    <input type="date" name="to" id="to" class="form-control form-control-sm" value="{{ filters.to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ path('dashboard_drifts') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Schema Drifts</h5>
+            <span class="badge bg-secondary">{{ pagination.totalCount }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Severity</th>
+                            <th scope="col" class="d-none d-md-table-cell">Type</th>
+                            <th scope="col">Path</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Endpoint</th>
+                            <th scope="col" class="d-none d-xl-table-cell">Token</th>
+                            <th scope="col" class="d-none d-md-table-cell">Created</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drift in drifts %}
+                            <tr>
+                                <td>
+                                    {% if drift.severity.value == 'critical' %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elseif drift.severity.value == 'warning' %}
+                                        <span class="badge bg-warning text-dark">Warning</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Info</span>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <span class="badge bg-secondary">
+                                        {{ drift.driftType.value|replace({'_': ' '})|capitalize }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <code class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ drift.path }}">
+                                        {{ drift.path }}
+                                    </code>
+                                </td>
+                                <td class="d-none d-lg-table-cell">
+                                    <small>
+                                        <span class="badge bg-dark">{{ drift.schema.httpMethod }}</span>
+                                        <span class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ drift.schema.endpointPath }}">
+                                            {{ drift.schema.endpointPath }}
+                                        </span>
+                                    </small>
+                                </td>
+                                <td class="d-none d-xl-table-cell">
+                                    <small class="text-muted">{{ drift.token.name }}</small>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <small class="text-muted">{{ drift.createdAt|date('M j, Y H:i') }}</small>
+                                </td>
+                                <td>
+                                    {% if drift.isAccepted %}
+                                        <span class="badge bg-success">Accepted</span>
+                                    {% else %}
+                                        <span class="badge bg-outline-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ path('dashboard_drifts_show', {id: drift.id}) }}" class="btn btn-sm btn-outline-primary" aria-label="View drift details">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                        <span class="d-none d-sm-inline">View</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+                                    No drifts found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if pagination.totalPages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Drift pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center">
+                        <li class="page-item {{ not pagination.hasPrevPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_drifts', filters|merge({page: pagination.page - 1})) }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for p in range(max(1, pagination.page - 2), min(pagination.totalPages, pagination.page + 2)) %}
+                            <li class="page-item {{ p == pagination.page ? 'active' : '' }}">
+                                <a class="page-link" href="{{ path('dashboard_drifts', filters|merge({page: p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {{ not pagination.hasNextPage ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ path('dashboard_drifts', filters|merge({page: pagination.page + 1})) }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
