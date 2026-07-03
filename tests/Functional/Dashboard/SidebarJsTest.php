@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Browser\Dashboard;
+namespace App\Tests\Functional\Dashboard;
 
-use App\Tests\Browser\AbstractPantherTestCase;
+use App\Tests\Functional\AbstractPantherTestCase;
 use PHPUnit\Framework\Attributes\Test;
 
 final class SidebarJsTest extends AbstractPantherTestCase
@@ -14,9 +14,6 @@ final class SidebarJsTest extends AbstractPantherTestCase
     {
         $this->loginAsUser();
         $client = $this->getPantherClient();
-
-        // Set desktop viewport for consistent behavior
-        $client->manage()->window()->setSize(new \Facebook\WebDriver\WebDriverDimension(1920, 1080));
 
         $client->request('GET', '/dashboard');
         $this->waitForStimulusController('sidebar');
@@ -31,8 +28,6 @@ final class SidebarJsTest extends AbstractPantherTestCase
     {
         $this->loginAsUser();
         $client = $this->getPantherClient();
-
-        $client->manage()->window()->setSize(new \Facebook\WebDriver\WebDriverDimension(1920, 1080));
 
         $client->request('GET', '/dashboard');
         $this->waitForStimulusController('sidebar');
@@ -49,16 +44,12 @@ final class SidebarJsTest extends AbstractPantherTestCase
         $this->loginAsUser();
         $client = $this->getPantherClient();
 
-        $client->manage()->window()->setSize(new \Facebook\WebDriver\WebDriverDimension(1920, 1080));
-
         $client->request('GET', '/dashboard');
         $this->waitForStimulusController('sidebar');
 
         // Navigate using direct URL (Turbo/JS navigation can be unreliable in headless)
         $client->request('GET', '/dashboard/services');
 
-        // Wait for page load and verify
-        $client->waitFor('.header-title', 5);
         $this->assertElementTextContains('.header-title', 'Service Health');
     }
 }

@@ -7,12 +7,41 @@
 
 # Run main application tests
 ddev exec php bin/phpunit "$@"
+overall_exit_code=$?
 
 # Run tests for each package
 for package in packages/*/; do
-    if [ -f "${package}vendor/bin/phpunit" ]; then
+    if [ -f "${package}phpunit.xml.dist" ]; then
+        package_path="${package%/}"
+        package_config="${package}phpunit.xml.dist"
+        package_autoload="${package}vendor/autoload.php"
+
         echo ""
         echo "=== Testing ${package} ==="
-        ddev exec php "${package}vendor/bin/phpunit" -c "${package}" "$@"
+        ddev exec php bin/phpunit -c "${package_config}" "$@"
+        package_exit_code=$?
+
+        # If package dependencies are missing, install once and retry.
+        if [ ${package_exit_code} -ne 0 ] && [ ! -f "${package_autoload}" ] && [ -f "${package}composer.json" ]; then
+            echo ""
+            echo "=== Installing dependencies for ${package} ==="
+            ddev exec composer install --working-dir "${package_path}" --no-interaction
+            install_exit_code=$?
+
+            if [ ${install_exit_code} -eq 0 ]; then
+                echo ""
+                echo "=== Retrying tests for ${package} ==="
+                ddev exec php bin/phpunit -c "${package_config}" "$@"
+                package_exit_code=$?
+            else
+                package_exit_code=${install_exit_code}
+            fi
+        fi
+
+        if [ ${package_exit_code} -ne 0 ]; then
+            overall_exit_code=${package_exit_code}
+        fi
     fi
 done
+
+exit ${overall_exit_code}
