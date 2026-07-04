@@ -196,6 +196,41 @@ final class SwooleRunnerTest extends TestCase
     }
 
     #[Test]
+    public function hookFlagsExcludePdoPgsqlToKeepDoctrineConnectionSafeAcrossCoroutines(): void
+    {
+        if (!defined('SWOOLE_HOOK_PDO_PGSQL')) {
+            self::markTestSkipped('Installed Swoole build does not expose SWOOLE_HOOK_PDO_PGSQL.');
+        }
+
+        $kernel = $this->createMock(KernelInterface::class);
+        $runner = new SwooleRunner($kernel);
+
+        $reflection = new \ReflectionClass($runner);
+        $method = $reflection->getMethod('getServerSettings');
+        $method->setAccessible(true);
+
+        $settings = $method->invoke($runner);
+        $this->assertIsArray($settings);
+
+        /** @var array<string, mixed> $settings */
+        $hookFlags = $settings['hook_flags'];
+        $this->assertIsInt($hookFlags);
+
+        /** @var int $pdoPgsqlHook */
+        $pdoPgsqlHook = constant('SWOOLE_HOOK_PDO_PGSQL');
+
+        $this->assertSame(
+            0,
+            $hookFlags & $pdoPgsqlHook,
+            'PDO_PGSQL must not be coroutine-hooked; sharing the Doctrine connection across '
+            . 'coroutines would allow interleaved queries from concurrent requests.'
+        );
+
+        // Other hooks (e.g. TCP sockets used by the proxy's outbound HTTP path) must remain enabled.
+        $this->assertNotSame(0, $hookFlags & SWOOLE_HOOK_TCP);
+    }
+
+    #[Test]
     public function workerNumCanBeConfiguredViaEnv(): void
     {
         $_ENV['SWOOLE_WORKER_NUM'] = '16';

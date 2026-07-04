@@ -86,7 +86,7 @@ final class SwooleRunner implements RunnerInterface
         return [
             'worker_num' => $workerNum,
             'enable_coroutine' => true,
-            'hook_flags' => SWOOLE_HOOK_ALL,
+            'hook_flags' => $this->getHookFlags(),
             'max_request' => (int) $maxRequestValue,
             'dispatch_mode' => 2,
             'max_wait_time' => $this->getGracefulShutdownTimeout(),
@@ -95,6 +95,39 @@ final class SwooleRunner implements RunnerInterface
             'document_root' => $this->kernel->getProjectDir() . '/public',
             'static_handler_locations' => ['/build', '/assets', '/favicon.ico'],
         ];
+    }
+
+    /**
+     * Coroutine hook flags for the worker runtime.
+     *
+     * Deliberately excludes SWOOLE_HOOK_PDO_PGSQL where available. Doctrine's
+     * EntityManager/DBAL Connection is a single object shared by all coroutines
+     * within a worker (it is resolved once from the container at worker boot and
+     * reused by every request). If PDO_PGSQL were coroutine-hooked, a query could
+     * yield control mid-flight and let a *different* coroutine send another query
+     * on the same underlying socket, corrupting/interleaving results across
+     * concurrent requests. Keeping PDO_PGSQL un-hooked makes DB calls fully
+     * blocking, so a query always completes before any other coroutine in the
+     * worker can run, which serializes DB access safely at the cost of coroutine
+     * concurrency for DB-bound work. Outbound proxy requests are unaffected:
+     * SwooleHttpClient uses Swoole\Coroutine\Http\Client, which is coroutine-native
+     * regardless of hook_flags. See .windsurf/rules/swoole.md for details.
+     *
+     * SWOOLE_HOOK_PDO_PGSQL is only defined when Swoole is compiled with
+     * --enable-swoole-pgsql, so its exclusion is guarded to remain portable
+     * across Swoole builds.
+     */
+    private function getHookFlags(): int
+    {
+        $flags = SWOOLE_HOOK_ALL;
+
+        if (defined('SWOOLE_HOOK_PDO_PGSQL')) {
+            /** @var int $pdoPgsqlHook */
+            $pdoPgsqlHook = constant('SWOOLE_HOOK_PDO_PGSQL');
+            $flags &= ~$pdoPgsqlHook;
+        }
+
+        return $flags;
     }
 
     private function registerEventHandlers(Server $server, int $port): void
