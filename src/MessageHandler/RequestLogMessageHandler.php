@@ -21,6 +21,13 @@ use Symfony\Component\Uid\Uuid;
 #[AsMessageHandler]
 final readonly class RequestLogMessageHandler
 {
+    private const array SENSITIVE_HEADER_NAMES = [
+        'authorization',
+        'cookie',
+        'proxy-authorization',
+        'set-cookie',
+    ];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ApiTokenRepository $tokenRepository,
@@ -62,6 +69,9 @@ final readonly class RequestLogMessageHandler
         $requestBody = $fields['requestBody'] ? $message->requestBody : null;
         $responseHeaders = $fields['responseHeaders'] ? $message->responseHeaders : null;
         $responseBody = $fields['responseBody'] ? $message->responseBody : null;
+
+        $requestHeaders = $this->redactSensitiveHeaders($requestHeaders);
+        $responseHeaders = $this->redactSensitiveHeaders($responseHeaders);
 
         $isEncrypted = false;
 
@@ -126,5 +136,40 @@ final readonly class RequestLogMessageHandler
         }
 
         return $this->compressionService->compress($data);
+    }
+
+    private function redactSensitiveHeaders(?string $headers): ?string
+    {
+        if ($headers === null || $headers === '') {
+            return $headers;
+        }
+
+        try {
+            $decoded = json_decode($headers, true, 512, JSON_THROW_ON_ERROR);
+
+            if (!is_array($decoded)) {
+                return $headers;
+            }
+
+            $didRedact = false;
+            foreach ($decoded as $name => $value) {
+                if (!is_string($name)) {
+                    continue;
+                }
+
+                if (in_array(strtolower($name), self::SENSITIVE_HEADER_NAMES, true)) {
+                    $decoded[$name] = '[REDACTED]';
+                    $didRedact = true;
+                }
+            }
+
+            if (!$didRedact) {
+                return $headers;
+            }
+
+            return json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        } catch (\JsonException) {
+            return $headers;
+        }
     }
 }

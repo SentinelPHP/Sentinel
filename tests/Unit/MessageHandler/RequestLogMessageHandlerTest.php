@@ -247,4 +247,41 @@ final class RequestLogMessageHandlerTest extends TestCase
 
         ($this->handler)($message);
     }
+
+    #[Test]
+    public function invokeAlwaysRedactsSensitiveHeadersWhenDataProtectionStrategyIsNone(): void
+    {
+        $this->dataProtectionService
+            ->expects(self::never())
+            ->method('protect');
+
+        $message = new RequestLogMessage(
+            requestLogId: Uuid::v7()->toRfc4122(),
+            tokenId: null,
+            targetHost: 'api.example.com',
+            requestMethod: 'POST',
+            requestPath: '/users',
+            responseStatusCode: 201,
+            latencyMs: 100,
+            logLevel: LogLevel::FullAudit,
+            requestHeaders: '{"Authorization":"Bearer token-123","Cookie":"session=abc","Content-Type":"application/json"}',
+            requestBody: '{"name":"test"}',
+            responseHeaders: '{"Proxy-Authorization":"Bearer upstream-secret","Set-Cookie":"sessionid=xyz; Path=/","X-Request-Id":"abc123"}',
+            responseBody: '{"id":1}',
+        );
+
+        $this->entityManager
+            ->expects(self::once())
+            ->method('persist')
+            ->with(self::callback(function (RequestLog $log): bool {
+                return $log->getRequestHeaders() === '{"Authorization":"[REDACTED]","Cookie":"[REDACTED]","Content-Type":"application/json"}'
+                    && $log->getResponseHeaders() === '{"Proxy-Authorization":"[REDACTED]","Set-Cookie":"[REDACTED]","X-Request-Id":"abc123"}';
+            }));
+
+        $this->entityManager
+            ->expects(self::once())
+            ->method('flush');
+
+        ($this->handler)($message);
+    }
 }

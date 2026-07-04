@@ -244,4 +244,32 @@ final class RequestLogMessageHandlerTest extends KernelTestCase
         self::assertContains('api1.example.com', $hosts);
         self::assertContains('api2.example.com', $hosts);
     }
+
+    #[Test]
+    public function handlerAlwaysRedactsSensitiveHeadersWhenPersistingLogs(): void
+    {
+        $message = new RequestLogMessage(
+            requestLogId: Uuid::v7()->toRfc4122(),
+            tokenId: null,
+            targetHost: 'api.example.com',
+            requestMethod: 'POST',
+            requestPath: '/users',
+            responseStatusCode: 201,
+            latencyMs: 100,
+            logLevel: LogLevel::Headers,
+            requestHeaders: '{"Authorization":"Bearer token-123","Cookie":"session=abc","Accept":"application/json"}',
+            requestBody: '{"name":"test"}',
+            responseHeaders: '{"Proxy-Authorization":"Bearer upstream-secret","Set-Cookie":"sessionid=xyz; Path=/","X-Request-Id":"abc123"}',
+            responseBody: '{"id":1}',
+        );
+
+        ($this->handler)($message);
+
+        $logs = $this->requestLogRepository->findAll();
+        self::assertCount(1, $logs);
+
+        $log = $logs[0];
+        self::assertSame('{"Authorization":"[REDACTED]","Cookie":"[REDACTED]","Accept":"application/json"}', $log->getRequestHeaders());
+        self::assertSame('{"Proxy-Authorization":"[REDACTED]","Set-Cookie":"[REDACTED]","X-Request-Id":"abc123"}', $log->getResponseHeaders());
+    }
 }
