@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-11
+
+### Changed
+- Restructured user documentation into chapter-based files under `docs/` and shortened the root `README.md` to an index and quick start.
+- Updated ingest API documentation to reflect `202` accepted responses (`{ "success": true }`) and `429` rate-limit responses.
+- Removed `.env.example` and updated onboarding docs to use committed `.env` defaults.
+
 ## [1.0.0] - 2026-07-03
 
 ### Added

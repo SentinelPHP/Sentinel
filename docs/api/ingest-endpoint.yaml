@@ -105,14 +105,10 @@ components:
       type: object
       required:
         - success
-        - message
       properties:
         success:
           type: boolean
           example: true
-        message:
-          type: string
-          example: "Ingested successfully"
 
     ErrorResponse:
       type: object
@@ -182,15 +178,14 @@ paths:
                   responseBody: '{"order_id": "ORD-123", "status": "created"}'
                   id: "01913a4c-5b6d-7e8f-9a0b-1c2d3e4f5a6b"
       responses:
-        '200':
-          description: Successfully ingested
+        '202':
+          description: Ingest accepted
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngestSuccessResponse'
               example:
                 success: true
-                message: "Ingested successfully"
         '400':
           description: Bad request (invalid JSON, missing required fields)
           content:
@@ -230,6 +225,22 @@ paths:
                   value:
                     error: true
                     message: "Invalid API token"
+        '429':
+          description: Too many requests (rate limiter)
+          headers:
+            Retry-After:
+              description: Number of seconds to wait before retrying
+              schema:
+                type: string
+                example: "60"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: "Too many requests. Please try again later."
+
         '500':
           description: Internal server error
           content:
