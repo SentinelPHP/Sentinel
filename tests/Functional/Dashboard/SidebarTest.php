@@ -12,7 +12,7 @@ final class SidebarTest extends AbstractDashboardTestCase
     public function sidebarHasStimulusControllerAttribute(): void
     {
         $this->loginAsUser();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard');
         $this->assertStimulusControllerExists('sidebar');
@@ -26,7 +26,7 @@ final class SidebarTest extends AbstractDashboardTestCase
     public function sidebarHasNavigationLinks(): void
     {
         $this->loginAsUser();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard');
 
@@ -40,7 +40,7 @@ final class SidebarTest extends AbstractDashboardTestCase
     public function sidebarNavigationLinksLoadPages(): void
     {
         $this->loginAsUser();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard/services');
 

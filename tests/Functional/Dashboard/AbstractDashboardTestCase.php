@@ -19,7 +19,7 @@ abstract class AbstractDashboardTestCase extends WebTestCase
 
     protected function loginAs(User $user): void
     {
-        $client = $this->getClient();
+        $client = $this->getBrowser();
         $client->loginUser($user);
         $client->request('GET', '/dashboard');
         $this->assertElementExists('.sidebar');
@@ -46,7 +46,7 @@ abstract class AbstractDashboardTestCase extends WebTestCase
      */
     private function getOrCreateTestUser(string $email, array $roles): User
     {
-        $container = $this->getClient()->getContainer();
+        $container = $this->getBrowser()->getContainer();
         $em = $container->get('doctrine.orm.entity_manager');
         $userRepository = $em->getRepository(User::class);
         $passwordHasher = $container->get(UserPasswordHasherInterface::class);
@@ -66,7 +66,7 @@ abstract class AbstractDashboardTestCase extends WebTestCase
         return $user;
     }
 
-    protected function getClient(): KernelBrowser
+    protected function getBrowser(): KernelBrowser
     {
         if ($this->client === null) {
             $this->client = static::createClient();
@@ -95,18 +95,18 @@ abstract class AbstractDashboardTestCase extends WebTestCase
 
         $filename = sprintf('%s/%s_%s.html', $snapshotDir, date('Y-m-d_H-i-s'), $name);
 
-        file_put_contents($filename, $this->getClient()->getResponse()->getContent() ?: '');
+        file_put_contents($filename, $this->getBrowser()->getResponse()->getContent() ?: '');
     }
 
     protected function assertElementExists(string $selector, string $message = ''): void
     {
-        $elements = $this->getClient()->getCrawler()->filter($selector);
+        $elements = $this->getBrowser()->getCrawler()->filter($selector);
         $this->assertGreaterThan(0, $elements->count(), $message ?: "Element '$selector' not found");
     }
 
     protected function assertElementTextContains(string $selector, string $text, string $message = ''): void
     {
-        $element = $this->getClient()->getCrawler()->filter($selector)->first();
+        $element = $this->getBrowser()->getCrawler()->filter($selector)->first();
         $this->assertStringContainsString(
             $text,
             $element->text(),

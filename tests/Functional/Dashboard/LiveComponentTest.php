@@ -12,7 +12,7 @@ final class LiveComponentTest extends AbstractDashboardTestCase
     public function dashboardStatsLiveComponentLoads(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard');
 
@@ -24,7 +24,7 @@ final class LiveComponentTest extends AbstractDashboardTestCase
     public function dashboardContainsChartCanvas(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard');
 
@@ -36,7 +36,7 @@ final class LiveComponentTest extends AbstractDashboardTestCase
     public function servicesPageLoads(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getClient();
+        $client = $this->getBrowser();
 
         $client->request('GET', '/dashboard/services');
 
