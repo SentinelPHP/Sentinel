@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --ignore-platform-req=ext-swoole
 
+      - name: Warm up Symfony cache
+        env:
+          APP_SECRET: phpstan-ci-secret
+        run: php bin/console cache:warmup --env=dev
+
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse
 
