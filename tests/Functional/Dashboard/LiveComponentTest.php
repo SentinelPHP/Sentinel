@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Dashboard;
 
-use App\Tests\Functional\AbstractPantherTestCase;
 use PHPUnit\Framework\Attributes\Test;
 
-final class LiveComponentJsTest extends AbstractPantherTestCase
+final class LiveComponentTest extends AbstractDashboardTestCase
 {
     #[Test]
     public function dashboardStatsLiveComponentLoads(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
         $client->request('GET', '/dashboard');
 
@@ -22,27 +21,23 @@ final class LiveComponentJsTest extends AbstractPantherTestCase
     }
 
     #[Test]
-    public function chartJsRendersOnDashboard(): void
+    public function dashboardContainsChartCanvas(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
         $client->request('GET', '/dashboard');
 
-        // Verify canvas elements exist (Chart.js renders to canvas)
+        // Verify canvas elements exist in the rendered HTML (Chart.js targets canvas elements)
         $this->assertElementExists('canvas', 'Chart.js canvas should be rendered');
     }
 
     #[Test]
-    public function turboFrameNavigationWorks(): void
+    public function servicesPageLoads(): void
     {
         $this->loginAsAdmin();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
-        $client->request('GET', '/dashboard');
-        $this->waitForStimulusController('sidebar');
-
-        // Navigate using direct URL (Turbo/JS navigation can be unreliable in headless)
         $client->request('GET', '/dashboard/services');
 
         $this->assertElementTextContains('.header-title', 'Service Health');

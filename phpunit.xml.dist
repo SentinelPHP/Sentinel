@@ -21,7 +21,7 @@
             <directory>tests/Functional</directory>
             <exclude>tests/Functional/Dashboard</exclude>
         </testsuite>
-        <testsuite name="Browser">
+        <testsuite name="Dashboard">
             <directory>tests/Functional/Dashboard</directory>
         </testsuite>
     </testsuites>

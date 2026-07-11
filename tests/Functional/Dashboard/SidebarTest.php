@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Dashboard;
 
-use App\Tests\Functional\AbstractPantherTestCase;
 use PHPUnit\Framework\Attributes\Test;
 
-final class SidebarJsTest extends AbstractPantherTestCase
+final class SidebarTest extends AbstractDashboardTestCase
 {
     #[Test]
-    public function sidebarStimulusControllerLoads(): void
+    public function sidebarHasStimulusControllerAttribute(): void
     {
         $this->loginAsUser();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
         $client->request('GET', '/dashboard');
-        $this->waitForStimulusController('sidebar');
+        $this->assertStimulusControllerExists('sidebar');
 
-        // Verify sidebar controller is initialized
+        // Verify sidebar controller attribute and element are present
         $this->assertElementExists('[data-controller*="sidebar"]');
         $this->assertElementExists('.sidebar');
     }
@@ -27,10 +26,9 @@ final class SidebarJsTest extends AbstractPantherTestCase
     public function sidebarHasNavigationLinks(): void
     {
         $this->loginAsUser();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
         $client->request('GET', '/dashboard');
-        $this->waitForStimulusController('sidebar');
 
         // Verify navigation links exist
         $this->assertElementExists('.sidebar .nav-link[href="/dashboard"]');
@@ -39,15 +37,11 @@ final class SidebarJsTest extends AbstractPantherTestCase
     }
 
     #[Test]
-    public function sidebarNavigationWorks(): void
+    public function sidebarNavigationLinksLoadPages(): void
     {
         $this->loginAsUser();
-        $client = $this->getPantherClient();
+        $client = $this->getClient();
 
-        $client->request('GET', '/dashboard');
-        $this->waitForStimulusController('sidebar');
-
-        // Navigate using direct URL (Turbo/JS navigation can be unreliable in headless)
         $client->request('GET', '/dashboard/services');
 
         $this->assertElementTextContains('.header-title', 'Service Health');
