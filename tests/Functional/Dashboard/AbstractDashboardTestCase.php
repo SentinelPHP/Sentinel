@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Functional;
+namespace App\Tests\Functional\Dashboard;
 
 use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-abstract class AbstractPantherTestCase extends WebTestCase
+abstract class AbstractDashboardTestCase extends WebTestCase
 {
-    private const TEST_USER_EMAIL = 'panther-test@example.com';
-    private const TEST_ADMIN_EMAIL = 'panther-admin@example.com';
+    private const TEST_USER_EMAIL = 'dashboard-test@example.com';
+    private const TEST_ADMIN_EMAIL = 'dashboard-admin@example.com';
     private const TEST_PASSWORD = 'password';
 
     protected ?KernelBrowser $client = null;
 
     protected function loginAs(User $user): void
     {
-        $client = $this->getPantherClient();
+        $client = $this->getBrowser();
         $client->loginUser($user);
         $client->request('GET', '/dashboard');
         $this->assertElementExists('.sidebar');
@@ -46,7 +46,7 @@ abstract class AbstractPantherTestCase extends WebTestCase
      */
     private function getOrCreateTestUser(string $email, array $roles): User
     {
-        $container = $this->getPantherClient()->getContainer();
+        $container = $this->getBrowser()->getContainer();
         $em = $container->get('doctrine.orm.entity_manager');
         $userRepository = $em->getRepository(User::class);
         $passwordHasher = $container->get(UserPasswordHasherInterface::class);
@@ -66,7 +66,7 @@ abstract class AbstractPantherTestCase extends WebTestCase
         return $user;
     }
 
-    protected function getPantherClient(): KernelBrowser
+    protected function getBrowser(): KernelBrowser
     {
         if ($this->client === null) {
             $this->client = static::createClient();
@@ -75,39 +75,38 @@ abstract class AbstractPantherTestCase extends WebTestCase
         return $this->client;
     }
 
-    protected function waitForLiveComponent(string $selector, int $timeout = 5): void
+    protected function assertLiveComponentExists(string $selector): void
     {
         $this->assertElementExists($selector . '[data-live-id]');
     }
 
-    protected function waitForStimulusController(string $controller, int $timeout = 5): void
+    protected function assertStimulusControllerExists(string $controller): void
     {
         $this->assertElementExists(sprintf('[data-controller*="%s"]', $controller));
     }
 
-    protected function takeScreenshot(string $name): void
+    protected function saveResponseSnapshot(string $name): void
     {
         $projectDir = self::$kernel?->getProjectDir() ?? getcwd();
-        $screenshotDir = $projectDir . '/var/error-screenshots';
-        if (!is_dir($screenshotDir)) {
-            mkdir($screenshotDir, 0777, true);
+        $snapshotDir = $projectDir . '/var/error-snapshots';
+        if (!is_dir($snapshotDir)) {
+            mkdir($snapshotDir, 0777, true);
         }
-        
-        $filename = sprintf('%s/%s_%s', $screenshotDir, date('Y-m-d_H-i-s'), $name);
 
-        // KernelBrowser cannot capture image screenshots; persist HTML for debugging.
-        file_put_contents($filename . '.html', $this->getPantherClient()->getResponse()->getContent() ?: '');
+        $filename = sprintf('%s/%s_%s.html', $snapshotDir, date('Y-m-d_H-i-s'), $name);
+
+        file_put_contents($filename, $this->getBrowser()->getResponse()->getContent() ?: '');
     }
 
     protected function assertElementExists(string $selector, string $message = ''): void
     {
-        $elements = $this->getPantherClient()->getCrawler()->filter($selector);
+        $elements = $this->getBrowser()->getCrawler()->filter($selector);
         $this->assertGreaterThan(0, $elements->count(), $message ?: "Element '$selector' not found");
     }
 
     protected function assertElementTextContains(string $selector, string $text, string $message = ''): void
     {
-        $element = $this->getPantherClient()->getCrawler()->filter($selector)->first();
+        $element = $this->getBrowser()->getCrawler()->filter($selector)->first();
         $this->assertStringContainsString(
             $text,
             $element->text(),

@@ -109,9 +109,9 @@ jobs:
           APP_SECRET: test-secret-for-ci
         run: vendor/bin/phpunit --testsuite=Unit,Integration,Functional --coverage-text
 
-  panther:
+  dashboard:
     runs-on: ubuntu-latest
-    name: Panther E2E
+    name: Dashboard Tests
 
     services:
       postgres:
@@ -184,32 +184,30 @@ jobs:
           php bin/console doctrine:database:create --env=test --if-not-exists
           php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
-      - name: Create Panther test users
+      - name: Create dashboard test users
         env:
           DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
         run: |
-          php bin/console sentinel:user:create panther-admin@example.com --password=password --admin --env=test || true
-          php bin/console sentinel:user:create panther-test@example.com --password=password --env=test || true
+          php bin/console sentinel:user:create dashboard-admin@example.com --password=password --admin --env=test || true
+          php bin/console sentinel:user:create dashboard-test@example.com --password=password --env=test || true
 
-      - name: Create .env.test.local for Panther
+      - name: Create .env.test.local
         run: |
           echo 'DATABASE_URL="postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16"' > .env.test.local
           echo 'REDIS_URL="redis://localhost:6379"' >> .env.test.local
 
-      - name: Run Browser tests
+      - name: Run Dashboard tests
         env:
           DATABASE_URL: postgresql://sentinel:sentinel@localhost:5432/sentinel?serverVersion=16
           REDIS_URL: redis://localhost:6379
           APP_SECRET: test-secret-for-ci
-          PANTHER_NO_HEADLESS: 0
-          PANTHER_CHROME_ARGUMENTS: '--disable-gpu --no-sandbox --disable-dev-shm-usage'
-        run: vendor/bin/phpunit --testsuite=Browser
+        run: vendor/bin/phpunit --testsuite=Dashboard
 
-      - name: Upload screenshots on failure
+      - name: Upload response snapshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: panther-screenshots
-          path: var/error-screenshots/
+          name: dashboard-snapshots
+          path: var/error-snapshots/
           retention-days: 7
           if-no-files-found: ignore
